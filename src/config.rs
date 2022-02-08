@@ -28,20 +28,7 @@ impl Config {
                 file_path: absolute_path.to_str().unwrap().to_string(),
                 position: 0,
             };
-            let toml_text = toml::to_string(&new_config).expect("Failing to encode TOML");
-            if let Some(project_dirs) = ProjectDirs::from("com", "mongodb", "lazycoder") {
-                let config_dir = project_dirs.config_dir();
-                if !config_dir.exists() {
-                    fs::create_dir_all(config_dir)?;
-                }
-                let mut config_file = project_dirs.config_dir().to_path_buf();
-                config_file.push(FILE_NAME);
-                eprintln!(
-                    "Writing configuration to file {}",
-                    config_file.as_path().display()
-                );
-                fs::write(config_file, toml_text)?;
-            }
+            new_config.save(true)?;
             Ok(new_config)
         } else {
             eprintln!("{} doesn't exist", path.display());
@@ -59,7 +46,7 @@ impl Config {
             );
             let toml_text = fs::read_to_string(config_file)?;
             let cfg: Config = toml::from_str(&toml_text)?;
-            // TODO: Check that the file is stil valid?
+            // TODO: Check that the file_path is stil valid?
             Ok(cfg)
         } else {
             Err(LazyCoderError::ConfigError {})
@@ -70,38 +57,29 @@ impl Config {
         let snippet_hdlr: SnippetHandler = SnippetHandler::new(self.file_path.as_ref())?;
         let snippet = snippet_hdlr.get_snippet(self.position)?;
         self.position += 1;
-        let toml_text = toml::to_string(&self).expect("Failing to encode TOML");
-        if let Some(project_dirs) = ProjectDirs::from("com", "mongodb", "lazycoder") {
-            let mut config_file = project_dirs.config_dir().to_path_buf();
-            config_file.push(FILE_NAME);
-            eprintln!(
-                "Writing configuration to file {}",
-                config_file.as_path().display()
-            );
-            fs::write(config_file, toml_text)?;
-        }
+        self.save(false)?;
         Ok(snippet)
     }
 
     pub fn forward(&mut self, count: usize) -> Result<(), LazyCoderError> {
         self.position += count;
-        let toml_text = toml::to_string(&self).expect("Failing to encode TOML");
-        if let Some(project_dirs) = ProjectDirs::from("com", "mongodb", "lazycoder") {
-            let mut config_file = project_dirs.config_dir().to_path_buf();
-            config_file.push(FILE_NAME);
-            eprintln!(
-                "Writing configuration to file {}",
-                config_file.as_path().display()
-            );
-            fs::write(config_file, toml_text)?;
-        }
-        Ok(())
+        self.save(false)
     }
 
     pub fn rewind(&mut self, count: usize) -> Result<(), LazyCoderError> {
         self.position -= count;
+        self.save(false)
+    }
+
+    fn save(&self, create_dir: bool) -> Result<(), LazyCoderError> {
         let toml_text = toml::to_string(&self).expect("Failing to encode TOML");
         if let Some(project_dirs) = ProjectDirs::from("com", "mongodb", "lazycoder") {
+            if create_dir {
+                let config_dir = project_dirs.config_dir();
+                if !config_dir.exists() {
+                    fs::create_dir_all(config_dir)?;
+                }
+            }
             let mut config_file = project_dirs.config_dir().to_path_buf();
             config_file.push(FILE_NAME);
             eprintln!(
