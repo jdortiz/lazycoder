@@ -98,7 +98,7 @@ fn forward(count: usize) {
     match Config::read() {
         Ok(mut cfg) => {
             if let Err(err) = cfg.forward(count) {
-                eprintln!("Failed to obtain next snippet: {}", err);
+                eprintln!("Failed to foward: {}", err);
                 exit(1);
             } else {
                 exit(0);
@@ -116,7 +116,7 @@ fn rewind(count: usize) {
     match Config::read() {
         Ok(mut cfg) => {
             if let Err(err) = cfg.rewind(count) {
-                eprintln!("Failed to obtain next snippet: {}", err);
+                eprintln!("Failed to rewind: {}", err);
                 exit(1);
             } else {
                 exit(0);

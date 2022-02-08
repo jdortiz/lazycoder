@@ -67,8 +67,12 @@ impl Config {
     }
 
     pub fn rewind(&mut self, count: usize) -> Result<(), LazyCoderError> {
-        self.position -= count;
-        self.save(false)
+        if count <= self.position {
+            self.position -= count;
+            self.save(false)
+        } else {
+            Err(LazyCoderError::ConfigError)
+        }
     }
 
     fn save(&self, create_dir: bool) -> Result<(), LazyCoderError> {
