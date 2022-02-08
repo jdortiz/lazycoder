@@ -83,11 +83,33 @@ impl Config {
         Ok(snippet)
     }
 
-    pub fn forward(&self, count: usize) -> Result<(), LazyCoderError> {
-        Err(LazyCoderError::NotImplementedError {})
+    pub fn forward(&mut self, count: usize) -> Result<(), LazyCoderError> {
+        self.position += count;
+        let toml_text = toml::to_string(&self).expect("Failing to encode TOML");
+        if let Some(project_dirs) = ProjectDirs::from("com", "mongodb", "lazycoder") {
+            let mut config_file = project_dirs.config_dir().to_path_buf();
+            config_file.push(FILE_NAME);
+            eprintln!(
+                "Writing configuration to file {}",
+                config_file.as_path().display()
+            );
+            fs::write(config_file, toml_text)?;
+        }
+        Ok(())
     }
 
-    pub fn rewind(&self, count: usize) -> Result<(), LazyCoderError> {
-        Err(LazyCoderError::NotImplementedError {})
+    pub fn rewind(&mut self, count: usize) -> Result<(), LazyCoderError> {
+        self.position -= count;
+        let toml_text = toml::to_string(&self).expect("Failing to encode TOML");
+        if let Some(project_dirs) = ProjectDirs::from("com", "mongodb", "lazycoder") {
+            let mut config_file = project_dirs.config_dir().to_path_buf();
+            config_file.push(FILE_NAME);
+            eprintln!(
+                "Writing configuration to file {}",
+                config_file.as_path().display()
+            );
+            fs::write(config_file, toml_text)?;
+        }
+        Ok(())
     }
 }
