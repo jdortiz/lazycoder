@@ -4,6 +4,7 @@ mod snippet_handler;
 
 use clap::{Parser, Subcommand};
 use config::Config;
+use std::process::exit;
 
 // lazycoder start /filepath/demo.md
 // - works with only one demo at a time
@@ -61,9 +62,11 @@ fn start(filename: &str) {
     match Config::new(filename) {
         Ok(_) => {
             eprintln!("Configuration successfully created");
+            exit(0);
         }
         Err(err) => {
             eprintln!("Failed to create configuration: {}", err);
+            exit(1);
         }
     }
 }
@@ -75,14 +78,17 @@ fn next() {
             match cfg.next() {
                 Ok(snippet) => {
                     print!("{snippet}");
+                    exit(0);
                 }
                 Err(err) => {
                     eprintln!("Failed to obtain next snippet: {}", err);
+                    exit(1);
                 }
             };
         }
         Err(err) => {
             eprintln!("Failed to obtain next snippet: {}", err);
+            exit(1);
         }
     };
 }
@@ -93,10 +99,14 @@ fn forward(count: usize) {
         Ok(mut cfg) => {
             if let Err(err) = cfg.forward(count) {
                 eprintln!("Failed to obtain next snippet: {}", err);
+                exit(1);
+            } else {
+                exit(0);
             }
         }
         Err(err) => {
             eprintln!("Failed to foward: {}", err);
+            exit(1);
         }
     };
 }
@@ -107,10 +117,14 @@ fn rewind(count: usize) {
         Ok(mut cfg) => {
             if let Err(err) = cfg.rewind(count) {
                 eprintln!("Failed to obtain next snippet: {}", err);
+                exit(1);
+            } else {
+                exit(0);
             }
         }
         Err(err) => {
             eprintln!("Failed to rewind: {}", err);
+            exit(1);
         }
     };
 }
