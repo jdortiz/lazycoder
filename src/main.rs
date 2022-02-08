@@ -36,8 +36,6 @@ enum Command {
 }
 
 fn main() {
-    println!("LazyCoder");
-
     let value = Value::parse();
 
     match &value.command {
@@ -73,7 +71,7 @@ fn start(filename: &str) {
 fn next() {
     eprintln!("Next");
     match Config::read() {
-        Ok(cfg) => {
+        Ok(mut cfg) => {
             match cfg.next() {
                 Ok(snippet) => {
                     print!("{snippet}");

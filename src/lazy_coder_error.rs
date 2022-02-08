@@ -6,6 +6,8 @@ pub enum LazyCoderError {
     ConfigError,
 }
 
+impl error::Error for LazyCoderError {}
+
 impl fmt::Display for LazyCoderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -25,4 +27,8 @@ impl From<std::io::Error> for LazyCoderError {
     }
 }
 
-impl error::Error for LazyCoderError {}
+impl From<toml::de::Error> for LazyCoderError {
+    fn from(_: toml::de::Error) -> Self {
+        LazyCoderError::ConfigError {}
+    }
+}

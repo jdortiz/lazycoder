@@ -1,12 +1,12 @@
-use crate::lazy_coder_error::LazyCoderError;
+use crate::{lazy_coder_error::LazyCoderError, snippet_handler::SnippetHandler};
 use directories::ProjectDirs;
-use serde_derive::Serialize;
+use serde_derive::{Deserialize, Serialize};
 use std::{fs, path};
 
 static FILE_NAME: &str = "lazycoder.toml";
 
 /// LazyCoder configuration.
-#[derive(Default, Serialize)]
+#[derive(Default, Deserialize, Serialize)]
 pub struct Config {
     file_path: String,
     position: usize,
@@ -23,7 +23,7 @@ impl Config {
         let path = path::PathBuf::from(filename);
 
         if let Ok(absolute_path) = fs::canonicalize(&path) {
-            println!("{:?} does exist", absolute_path);
+            eprintln!("{:?} does exist", absolute_path);
             let new_config = Config {
                 file_path: absolute_path.to_str().unwrap().to_string(),
                 position: 0,
@@ -36,7 +36,7 @@ impl Config {
                 }
                 let mut config_file = project_dirs.config_dir().to_path_buf();
                 config_file.push(FILE_NAME);
-                println!(
+                eprintln!(
                     "Writing configuration to file {}",
                     config_file.as_path().display()
                 );
@@ -44,17 +44,43 @@ impl Config {
             }
             Ok(new_config)
         } else {
-            println!("{} doesn't exist", path.display());
+            eprintln!("{} doesn't exist", path.display());
             Err(LazyCoderError::ConfigError)
         }
     }
 
     pub fn read() -> Result<Config, LazyCoderError> {
-        Err(LazyCoderError::NotImplementedError {})
+        if let Some(project_dirs) = ProjectDirs::from("com", "mongodb", "lazycoder") {
+            let mut config_file = project_dirs.config_dir().to_path_buf();
+            config_file.push(FILE_NAME);
+            eprintln!(
+                "Reading configuration from file {}",
+                config_file.as_path().display()
+            );
+            let toml_text = fs::read_to_string(config_file)?;
+            let cfg: Config = toml::from_str(&toml_text)?;
+            // TODO: Check that the file is stil valid?
+            Ok(cfg)
+        } else {
+            Err(LazyCoderError::ConfigError {})
+        }
     }
 
-    pub fn next(&self) -> Result<String, LazyCoderError> {
-        Err(LazyCoderError::NotImplementedError {})
+    pub fn next(&mut self) -> Result<String, LazyCoderError> {
+        let snippet_hdlr: SnippetHandler = SnippetHandler::new(self.file_path.as_ref())?;
+        let snippet = snippet_hdlr.get_snippet(self.position)?;
+        self.position += 1;
+        let toml_text = toml::to_string(&self).expect("Failing to encode TOML");
+        if let Some(project_dirs) = ProjectDirs::from("com", "mongodb", "lazycoder") {
+            let mut config_file = project_dirs.config_dir().to_path_buf();
+            config_file.push(FILE_NAME);
+            eprintln!(
+                "Writing configuration to file {}",
+                config_file.as_path().display()
+            );
+            fs::write(config_file, toml_text)?;
+        }
+        Ok(snippet)
     }
 
     pub fn forward(&self, count: usize) -> Result<(), LazyCoderError> {
