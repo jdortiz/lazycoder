@@ -1,4 +1,9 @@
+mod config;
+mod lazy_coder_error;
+mod snippet_handler;
+
 use clap::{Parser, Subcommand};
+use config::Config;
 
 // lazycoder start /filepath/demo.md
 // - works with only one demo at a time
@@ -26,8 +31,8 @@ struct Value {
 enum Command {
     Start { filename: String },
     Next {},
-    Rewind { count: Option<u8> },
-    Forward { count: Option<u8> },
+    Rewind { count: Option<usize> },
+    Forward { count: Option<usize> },
 }
 
 fn main() {
@@ -37,16 +42,77 @@ fn main() {
 
     match &value.command {
         Command::Start { filename } => {
-            println!("Setting to work {}", filename);
+            start(filename);
         }
         Command::Next {} => {
-            println!("Next");
+            next();
         }
         Command::Forward { count } => {
-            println!("Forward {}", count.unwrap_or(1));
+            let count = count.unwrap_or(1);
+            forward(count);
         }
         Command::Rewind { count } => {
-            println!("Rewind {}", count.unwrap_or(1));
+            let count = count.unwrap_or(1);
+            rewind(count);
         }
     }
+}
+
+fn start(filename: &str) {
+    println!("Setting to work {}", filename);
+    match Config::new(filename) {
+        Ok(_) => {
+            eprintln!("Configuration successfully created");
+        }
+        Err(err) => {
+            eprintln!("Failed to create configuration: {}", err);
+        }
+    }
+}
+
+fn next() {
+    eprintln!("Next");
+    match Config::read() {
+        Ok(cfg) => {
+            match cfg.next() {
+                Ok(snippet) => {
+                    print!("{snippet}");
+                }
+                Err(err) => {
+                    eprintln!("Failed to obtain next snippet: {}", err);
+                }
+            };
+        }
+        Err(err) => {
+            eprintln!("Failed to obtain next snippet: {}", err);
+        }
+    };
+}
+
+fn forward(count: usize) {
+    eprintln!("Forward {}", count);
+    match Config::read() {
+        Ok(cfg) => {
+            if let Err(err) = cfg.forward(count) {
+                eprintln!("Failed to obtain next snippet: {}", err);
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to foward: {}", err);
+        }
+    };
+}
+
+fn rewind(count: usize) {
+    eprintln!("Rewind {}", count);
+    match Config::read() {
+        Ok(cfg) => {
+            if let Err(err) = cfg.rewind(count) {
+                eprintln!("Failed to obtain next snippet: {}", err);
+            }
+        }
+        Err(err) => {
+            eprintln!("Failed to rewind: {}", err);
+        }
+    };
 }
