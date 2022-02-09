@@ -66,12 +66,12 @@ fn start(filename: &str, verbose_level: u8) {
     match Config::new(filename, verbose_level) {
         Ok(_) => {
             if verbose_level > 0 {
-                eprintln!("Configuration successfully created");
+                eprintln!("Configuration successfully created.");
             }
             exit(0);
         }
         Err(err) => {
-            eprintln!("Failed to create configuration: {}", err);
+            eprintln!("Failed to create configuration: {err}.");
             exit(1);
         }
     }
@@ -89,13 +89,13 @@ fn next(verbose_level: u8) {
                     exit(0);
                 }
                 Err(err) => {
-                    eprintln!("Failed to obtain next snippet: {}", err);
+                    eprintln!("Failed to obtain next snippet: {err}.");
                     exit(1);
                 }
             };
         }
         Err(err) => {
-            eprintln!("Failed to obtain next snippet: {}", err);
+            eprintln!("Failed to obtain next snippet: {err}.");
             exit(1);
         }
     };
@@ -103,19 +103,19 @@ fn next(verbose_level: u8) {
 
 fn forward(count: usize, verbose_level: u8) {
     if verbose_level > 0 {
-        eprintln!("Forward {}", count);
+        eprintln!("Forward {count}");
     }
     match Config::read(verbose_level) {
         Ok(mut cfg) => {
             if let Err(err) = cfg.forward(count, verbose_level) {
-                eprintln!("Failed to foward: {}", err);
+                eprintln!("Failed to foward: {err}.");
                 exit(1);
             } else {
                 exit(0);
             }
         }
         Err(err) => {
-            eprintln!("Failed to foward: {}", err);
+            eprintln!("Failed to foward: {err}.");
             exit(1);
         }
     };
@@ -126,14 +126,14 @@ fn rewind(count: usize, verbose_level: u8) {
     match Config::read(verbose_level) {
         Ok(mut cfg) => {
             if let Err(err) = cfg.rewind(count, verbose_level) {
-                eprintln!("Failed to rewind: {}", err);
+                eprintln!("Failed to rewind: {err}.");
                 exit(1);
             } else {
                 exit(0);
             }
         }
         Err(err) => {
-            eprintln!("Failed to rewind: {}", err);
+            eprintln!("Failed to rewind: {err}.");
             exit(1);
         }
     };

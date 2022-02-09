@@ -13,17 +13,17 @@ impl SnippetHandler {
                 filename: path.to_str().unwrap().to_owned(),
             })
         } else {
-            Err(LazyCoderError::ConfigError {})
+            Err(LazyCoderError::SnippetFileNotFound)
         }
     }
 
     pub fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError> {
-        match fs::read_to_string(&self.filename)?
-            .split("\n---\n\n")
-            .nth(position)
-        {
-            Some(snippet) => Ok(snippet.to_owned()),
-            None => Err(LazyCoderError::ConfigError {}),
+        match fs::read_to_string(&self.filename) {
+            Ok(string) => match string.split("\n---\n\n").nth(position) {
+                Some(snippet) => Ok(snippet.to_owned()),
+                None => Err(LazyCoderError::RunOutOfSnippets),
+            },
+            Err(err) => Err(LazyCoderError::SnippetFileError(err)),
         }
     }
 }

@@ -36,7 +36,7 @@ impl Config {
             if verbose_level > 0 {
                 eprintln!("{} doesn't exist", path.display());
             }
-            Err(LazyCoderError::ConfigError)
+            Err(LazyCoderError::SnippetFileNotFound)
         }
     }
 
@@ -55,7 +55,7 @@ impl Config {
             // TODO: Check that the file_path is stil valid?
             Ok(cfg)
         } else {
-            Err(LazyCoderError::ConfigError {})
+            Err(LazyCoderError::ConfigDirError)
         }
     }
 
@@ -77,7 +77,7 @@ impl Config {
             self.position -= count;
             self.save(false, verbose_level)
         } else {
-            Err(LazyCoderError::ConfigError)
+            Err(LazyCoderError::OperationOutOfRange)
         }
     }
 
@@ -99,7 +99,9 @@ impl Config {
                 );
             }
             fs::write(config_file, toml_text)?;
+            Ok(())
+        } else {
+            Err(LazyCoderError::ConfigDirError)
         }
-        Ok(())
     }
 }
