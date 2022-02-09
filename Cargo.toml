@@ -1,6 +1,8 @@
 [package]
+authors = ["Jorge D. Ortiz-Fuentes <jorge.ortiz-fuentes@mongodb.com>"]
 name = "lazycoder"
-version = "0.4.0"
+description = "Simple snippet provider for espanso."
+version = "0.5.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
