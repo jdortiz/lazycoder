@@ -24,7 +24,7 @@ use std::process::exit;
 #[derive(Parser)]
 #[clap(author,version,about,long_about=None)]
 struct Value {
-    #[clap(short, long, parse(from_occurrences))]
+    #[clap(short, long, parse(from_occurrences), help = "Verbosity level")]
     verbose: u8,
     #[clap(subcommand)]
     command: Command,
@@ -32,10 +32,23 @@ struct Value {
 
 #[derive(Subcommand)]
 enum Command {
-    Start { filename: String },
+    #[clap(about = "Use <FILENAME> to provide snippets")]
+    Start {
+        #[clap(help = "Path to snippet file")]
+        filename: String,
+    },
+    #[clap(about = "Provide next snippet")]
     Next {},
-    Rewind { count: Option<usize> },
-    Forward { count: Option<usize> },
+    #[clap(about = "Rewind [n] snippet(s)")]
+    Rewind {
+        #[clap(help = "n")]
+        count: Option<usize>,
+    },
+    #[clap(about = "Forward [n] snippet(s)")]
+    Forward {
+        #[clap(help = "n")]
+        count: Option<usize>,
+    },
 }
 
 fn main() {
