@@ -135,7 +135,9 @@ fn forward(count: usize, verbose_level: u8) {
 }
 
 fn rewind(count: usize, verbose_level: u8) {
-    eprintln!("Rewind {}", count);
+    if verbose_level > 0 {
+        eprintln!("Rewind {}", count);
+    }
     match Config::read(verbose_level) {
         Ok(mut cfg) => {
             if let Err(err) = cfg.rewind(count, verbose_level) {
