@@ -23,8 +23,9 @@ use std::process::exit;
 // - returns nothing
 #[derive(Parser)]
 #[clap(author,version,about,long_about=None)]
-struct Value {
-    #[clap(short, long, parse(from_occurrences), help = "Verbosity level")]
+struct CliArgs {
+    /// Verbosity level
+    #[clap(short, long, action = clap::ArgAction::Count)]
     verbose: u8,
     #[clap(subcommand)]
     command: Command,
@@ -52,7 +53,7 @@ enum Command {
 }
 
 fn main() {
-    let value = Value::parse();
+    let value = CliArgs::parse();
 
     match &value.command {
         Command::Start { filename } => {
