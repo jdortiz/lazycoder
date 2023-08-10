@@ -2,7 +2,7 @@
 authors = ["Jorge D. Ortiz-Fuentes <jorge.ortiz-fuentes@mongodb.com>"]
 name = "lazycoder"
 description = "Simple snippet provider for espanso."
-version = "0.6.0"
+version = "0.6.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
