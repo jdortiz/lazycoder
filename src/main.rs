@@ -1,19 +1,22 @@
 //! Lazycoder - A simple snippet generator for expanso
 //!
-//! lazycoder start /filepath/demo.md
+//! `lazycoder start </filepath/demo.lazycoder>`
 //! - works with only one demo at a time
+//! - save file name
 //! - save initial next position: 0
-//! - file name
-//! - config. saved in ~/.lazycoder
-//! lazycoder next
+//! - config file location depends on OS. saved in ~/.lazycoder
+//!
+//! `lazycoder next`
 //! - reads from config file
 //! - reads next snippet
-//! - incs pointer to next snippet
-//! lazycoder rewind [number]
-//! - decs pointer (number times)
+//! - increments counter to next snippet
+//!
+//! `lazycoder rewind [number]`
+//! - decrements counter (number times)
 //! - returns nothing
-//! lazycoder forward [number]
-//! - inc pointer (number times)
+//!
+//! `lazycoder forward [number]`
+//! - increments counter (number times)
 //! - returns nothing
 mod config;
 mod lazy_coder_error;
@@ -40,19 +43,19 @@ struct CliArgs {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Use <FILENAME> to provide snippets
+    /// Use *FILENAME* to provide snippets
     Start {
         /// Path to snippet file
         filename: String,
     },
     /// Provide next snippet
     Next {},
-    /// Rewind [n] snippet(s)
+    /// Rewind *n* snippet(s)
     Rewind {
         /// Set n (by default is 1)
         count: Option<usize>,
     },
-    /// Forward [n] snippet(s)
+    /// Forward *n* snippet(s)
     Forward {
         /// Set n (by default is 1)
         count: Option<usize>,
