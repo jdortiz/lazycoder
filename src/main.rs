@@ -24,7 +24,8 @@ mod snippet_handler;
 
 use clap::{Parser, Subcommand};
 use config::Config;
-use std::process::exit;
+use log::{debug, error, info};
+use std::{env, process::exit};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -63,103 +64,104 @@ enum Command {
 }
 
 fn main() {
-    let value = CliArgs::parse();
+    let cli = CliArgs::parse();
 
-    match &value.command {
+    let level = match cli.verbose {
+        0 => "error",
+        1 => "warn",
+        2 => "info",
+        3 => "debug",
+        _ => "trace",
+    };
+    env::set_var("RUST_LOG", level);
+    env_logger::init();
+
+    match cli.command {
         Command::Start { filename } => {
-            start(filename, value.verbose);
+            start(&filename);
         }
         Command::Next {} => {
-            next(value.verbose);
+            next();
         }
         Command::Forward { count } => {
             let count = count.unwrap_or(1);
-            forward(count, value.verbose);
+            forward(count);
         }
         Command::Rewind { count } => {
             let count = count.unwrap_or(1);
-            rewind(count, value.verbose);
+            rewind(count);
         }
     }
 }
 
-fn start(filename: &str, verbose_level: u8) {
-    if verbose_level > 0 {
-        println!("Setting to work {}", filename);
-    }
-    match Config::new(filename, verbose_level) {
+fn start(filename: &str) {
+    info!("Setting to work {}", filename);
+    match Config::new(filename) {
         Ok(_) => {
-            if verbose_level > 0 {
-                eprintln!("Configuration successfully created.");
-            }
+            debug!("Configuration successfully created.");
             exit(0);
         }
         Err(err) => {
-            eprintln!("Failed to create configuration: {err}.");
+            error!("Failed to create configuration: {err}.");
             exit(1);
         }
     }
 }
 
-fn next(verbose_level: u8) {
-    if verbose_level > 0 {
-        eprintln!("Next");
-    }
-    match Config::read(verbose_level) {
+fn next() {
+    info!("Next");
+
+    match Config::read() {
         Ok(mut cfg) => {
-            match cfg.next(verbose_level) {
+            match cfg.next() {
                 Ok(snippet) => {
                     print!("{snippet}");
                     exit(0);
                 }
                 Err(err) => {
-                    eprintln!("Failed to obtain next snippet: {err}.");
+                    error!("Failed to obtain next snippet: {err}.");
                     exit(1);
                 }
             };
         }
         Err(err) => {
-            eprintln!("Failed to obtain next snippet: {err}.");
+            error!("Failed to obtain next snippet: {err}.");
             exit(1);
         }
     };
 }
 
-fn forward(count: usize, verbose_level: u8) {
-    if verbose_level > 0 {
-        eprintln!("Forward {count}");
-    }
-    match Config::read(verbose_level) {
+fn forward(count: usize) {
+    info!("Forward {count}");
+    match Config::read() {
         Ok(mut cfg) => {
-            if let Err(err) = cfg.forward(count, verbose_level) {
-                eprintln!("Failed to foward: {err}.");
+            if let Err(err) = cfg.forward(count) {
+                error!("Failed to foward: {err}.");
                 exit(1);
             } else {
                 exit(0);
             }
         }
         Err(err) => {
-            eprintln!("Failed to foward: {err}.");
+            error!("Failed to foward: {err}.");
             exit(1);
         }
     };
 }
 
-fn rewind(count: usize, verbose_level: u8) {
-    if verbose_level > 0 {
-        eprintln!("Rewind {}", count);
-    }
-    match Config::read(verbose_level) {
+fn rewind(count: usize) {
+    info!("Rewind {}", count);
+    match Config::read() {
         Ok(mut cfg) => {
-            if let Err(err) = cfg.rewind(count, verbose_level) {
-                eprintln!("Failed to rewind: {err}.");
+            if let Err(err) = cfg.rewind(count) {
+                error!("Failed to rewind: {err}.");
                 exit(1);
             } else {
                 exit(0);
             }
         }
         Err(err) => {
-            eprintln!("Failed to rewind: {err}.");
+            error!("Failed to rewind: {err}.");
             exit(1);
         }
     };
