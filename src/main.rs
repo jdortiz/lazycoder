@@ -18,62 +18,22 @@
 //! `lazycoder forward [number]`
 //! - increments counter (number times)
 //! - returns nothing
+//!
+mod cli_args;
 mod config;
 mod lazy_coder_error;
 mod snippet_handler;
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use cli_args::{CliArgs, Command};
 use config::Config;
 use log::{debug, error, info};
 use std::{env, process::exit};
 
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-#[command(help_template = "{before-help}{name} {version}
-{author-with-newline}{about-section}
-{usage-heading} {usage}
-
-{all-args}{after-help}")] // This is required to show the author
-struct CliArgs {
-    /// Verbosity level
-    #[clap(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
-    #[clap(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// Use *FILENAME* to provide snippets
-    Start {
-        /// Path to snippet file
-        filename: String,
-    },
-    /// Provide next snippet
-    Next {},
-    /// Rewind *n* snippet(s)
-    Rewind {
-        /// Set n (by default is 1)
-        count: Option<usize>,
-    },
-    /// Forward *n* snippet(s)
-    Forward {
-        /// Set n (by default is 1)
-        count: Option<usize>,
-    },
-}
-
 fn main() {
     let cli = CliArgs::parse();
 
-    let level = match cli.verbose {
-        0 => "error",
-        1 => "warn",
-        2 => "info",
-        3 => "debug",
-        _ => "trace",
-    };
-    env::set_var("RUST_LOG", level);
+    env::set_var("RUST_LOG", cli.level.to_string());
     env_logger::init();
 
     match cli.command {
