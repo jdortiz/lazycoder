@@ -1,162 +1,127 @@
 //! Lazycoder - A simple snippet generator for expanso
 //!
-//! lazycoder start /filepath/demo.md
+//! `lazycoder start </filepath/demo.lazycoder>`
 //! - works with only one demo at a time
+//! - save file name
 //! - save initial next position: 0
-//! - file name
-//! - config. saved in ~/.lazycoder
-//! lazycoder next
+//! - config file location depends on OS. saved in ~/.lazycoder
+//!
+//! `lazycoder next`
 //! - reads from config file
 //! - reads next snippet
-//! - incs pointer to next snippet
-//! lazycoder rewind [number]
-//! - decs pointer (number times)
+//! - increments counter to next snippet
+//!
+//! `lazycoder rewind [number]`
+//! - decrements counter (number times)
 //! - returns nothing
-//! lazycoder forward [number]
-//! - inc pointer (number times)
+//!
+//! `lazycoder forward [number]`
+//! - increments counter (number times)
 //! - returns nothing
+//!
+mod cli_args;
 mod config;
 mod lazy_coder_error;
 mod snippet_handler;
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
+use cli_args::{CliArgs, Command};
 use config::Config;
-use std::process::exit;
-
-#[derive(Parser)]
-#[command(author, version, about, long_about = None)]
-#[command(help_template = "{before-help}{name} {version}
-{author-with-newline}{about-section}
-{usage-heading} {usage}
-
-{all-args}{after-help}")] // This is required to show the author
-struct CliArgs {
-    /// Verbosity level
-    #[clap(short, long, action = clap::ArgAction::Count)]
-    verbose: u8,
-    #[clap(subcommand)]
-    command: Command,
-}
-
-#[derive(Subcommand)]
-enum Command {
-    /// Use <FILENAME> to provide snippets
-    Start {
-        /// Path to snippet file
-        filename: String,
-    },
-    /// Provide next snippet
-    Next {},
-    /// Rewind [n] snippet(s)
-    Rewind {
-        /// Set n (by default is 1)
-        count: Option<usize>,
-    },
-    /// Forward [n] snippet(s)
-    Forward {
-        /// Set n (by default is 1)
-        count: Option<usize>,
-    },
-}
+use log::{debug, error, info};
+use std::{env, process::exit};
 
 fn main() {
-    let value = CliArgs::parse();
+    let cli = CliArgs::parse();
 
-    match &value.command {
+    env::set_var("RUST_LOG", cli.level.to_string());
+    env_logger::init();
+
+    match cli.command {
         Command::Start { filename } => {
-            start(filename, value.verbose);
+            start(&filename);
         }
         Command::Next {} => {
-            next(value.verbose);
+            next();
         }
         Command::Forward { count } => {
             let count = count.unwrap_or(1);
-            forward(count, value.verbose);
+            forward(count);
         }
         Command::Rewind { count } => {
             let count = count.unwrap_or(1);
-            rewind(count, value.verbose);
+            rewind(count);
         }
     }
 }
 
-fn start(filename: &str, verbose_level: u8) {
-    if verbose_level > 0 {
-        println!("Setting to work {}", filename);
-    }
-    match Config::new(filename, verbose_level) {
+fn start(filename: &str) {
+    info!("Setting to work {}", filename);
+    match Config::new(filename) {
         Ok(_) => {
-            if verbose_level > 0 {
-                eprintln!("Configuration successfully created.");
-            }
+            debug!("Configuration successfully created.");
             exit(0);
         }
         Err(err) => {
-            eprintln!("Failed to create configuration: {err}.");
+            error!("Failed to create configuration: {err}.");
             exit(1);
         }
     }
 }
 
-fn next(verbose_level: u8) {
-    if verbose_level > 0 {
-        eprintln!("Next");
-    }
-    match Config::read(verbose_level) {
+fn next() {
+    info!("Next");
+
+    match Config::read() {
         Ok(mut cfg) => {
-            match cfg.next(verbose_level) {
+            match cfg.next() {
                 Ok(snippet) => {
                     print!("{snippet}");
                     exit(0);
                 }
                 Err(err) => {
-                    eprintln!("Failed to obtain next snippet: {err}.");
+                    error!("Failed to obtain next snippet: {err}.");
                     exit(1);
                 }
             };
         }
         Err(err) => {
-            eprintln!("Failed to obtain next snippet: {err}.");
+            error!("Failed to obtain next snippet: {err}.");
             exit(1);
         }
     };
 }
 
-fn forward(count: usize, verbose_level: u8) {
-    if verbose_level > 0 {
-        eprintln!("Forward {count}");
-    }
-    match Config::read(verbose_level) {
+fn forward(count: usize) {
+    info!("Forward {count}");
+    match Config::read() {
         Ok(mut cfg) => {
-            if let Err(err) = cfg.forward(count, verbose_level) {
-                eprintln!("Failed to foward: {err}.");
+            if let Err(err) = cfg.forward(count) {
+                error!("Failed to foward: {err}.");
                 exit(1);
             } else {
                 exit(0);
             }
         }
         Err(err) => {
-            eprintln!("Failed to foward: {err}.");
+            error!("Failed to foward: {err}.");
             exit(1);
         }
     };
 }
 
-fn rewind(count: usize, verbose_level: u8) {
-    if verbose_level > 0 {
-        eprintln!("Rewind {}", count);
-    }
-    match Config::read(verbose_level) {
+fn rewind(count: usize) {
+    info!("Rewind {}", count);
+    match Config::read() {
         Ok(mut cfg) => {
-            if let Err(err) = cfg.rewind(count, verbose_level) {
-                eprintln!("Failed to rewind: {err}.");
+            if let Err(err) = cfg.rewind(count) {
+                error!("Failed to rewind: {err}.");
                 exit(1);
             } else {
                 exit(0);
             }
         }
         Err(err) => {
-            eprintln!("Failed to rewind: {err}.");
+            error!("Failed to rewind: {err}.");
             exit(1);
         }
     };
