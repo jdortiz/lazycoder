@@ -10,7 +10,7 @@
 //! - forward: Increments counter
 //!
 use clap::{Parser, Subcommand};
-use std::fmt;
+use std::{fmt, path::PathBuf};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -53,7 +53,7 @@ pub enum Command {
     /// Use *FILENAME* to provide snippets
     Start {
         /// Path to snippet file
-        filename: String,
+        filename: PathBuf,
     },
     /// Provide next snippet
     Next {},

@@ -28,7 +28,7 @@ use clap::Parser;
 use cli_args::{CliArgs, Command};
 use config::Config;
 use log::{debug, error, info};
-use std::{env, process::exit};
+use std::{env, path::PathBuf, process::exit};
 
 fn main() {
     let cli = CliArgs::parse();
@@ -54,8 +54,8 @@ fn main() {
     }
 }
 
-fn start(filename: &str) {
-    info!("Setting to work {}", filename);
+fn start(filename: &PathBuf) {
+    info!("Setting to work {}", filename.display().to_string());
     match Config::new(filename) {
         Ok(_) => {
             debug!("Configuration successfully created.");

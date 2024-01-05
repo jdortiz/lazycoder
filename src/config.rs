@@ -2,7 +2,7 @@ use crate::{lazy_coder_error::LazyCoderError, snippet_handler::SnippetHandler};
 use directories::ProjectDirs;
 use log::{debug, error};
 use serde_derive::{Deserialize, Serialize};
-use std::{fs, path};
+use std::{fs, path::Path};
 
 static FILE_NAME: &str = "lazycoder.toml";
 
@@ -20,10 +20,8 @@ impl Config {
     /// # Arguments
     ///
     /// * `filename` - name of the file with the snippets that will be stored in the configuration.
-    pub fn new(filename: &str) -> Result<Config, LazyCoderError> {
-        let path = path::PathBuf::from(filename);
-
-        if let Ok(absolute_path) = fs::canonicalize(&path) {
+    pub fn new(path: &Path) -> Result<Config, LazyCoderError> {
+        if let Ok(absolute_path) = fs::canonicalize(path) {
             debug!("{:?} does exist", absolute_path);
             let new_config = Config {
                 file_path: absolute_path.to_str().unwrap().to_string(),
