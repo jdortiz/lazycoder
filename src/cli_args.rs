@@ -10,7 +10,7 @@
 //! - forward: Increments counter
 //!
 use clap::{Parser, Subcommand};
-use std::{fmt, path::PathBuf};
+use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -21,31 +21,10 @@ use std::{fmt, path::PathBuf};
 {all-args}{after-help}")] // This is required to show the author
 pub struct CliArgs {
     /// Verbosity level
-    #[clap(short, long, value_enum, default_value = "warn")]
-    pub level: LogLevel,
+    #[clap(short, long, value_enum, value_name = "LEVEL", default_value = "warn")]
+    pub level: log::LevelFilter,
     #[clap(subcommand)]
     pub command: Command,
-}
-
-#[derive(clap::ValueEnum, Clone)]
-pub enum LogLevel {
-    Error,
-    Warn,
-    Info,
-    Debug,
-    Trace,
-}
-
-impl fmt::Display for LogLevel {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Error => write!(f, "error"),
-            Self::Warn => write!(f, "warn"),
-            Self::Info => write!(f, "info"),
-            Self::Debug => write!(f, "debug"),
-            Self::Trace => write!(f, "trace"),
-        }
-    }
 }
 
 #[derive(Subcommand)]
