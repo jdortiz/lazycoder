@@ -2,7 +2,10 @@ use crate::{lazy_coder_error::LazyCoderError, snippet_handler::SnippetHandler};
 use directories::ProjectDirs;
 use log::{debug, error};
 use serde_derive::{Deserialize, Serialize};
-use std::{fs, path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 static FILE_NAME: &str = "lazycoder.toml";
 
@@ -20,10 +23,8 @@ impl Config {
     /// # Arguments
     ///
     /// * `filename` - name of the file with the snippets that will be stored in the configuration.
-    pub fn new(filename: &str) -> Result<Config, LazyCoderError> {
-        let path = path::PathBuf::from(filename);
-
-        if let Ok(absolute_path) = fs::canonicalize(&path) {
+    pub fn new(path: &Path) -> Result<Config, LazyCoderError> {
+        if let Ok(absolute_path) = fs::canonicalize(path) {
             debug!("{:?} does exist", absolute_path);
             let new_config = Config {
                 file_path: absolute_path.to_str().unwrap().to_string(),
@@ -55,7 +56,8 @@ impl Config {
     }
 
     pub fn next(&mut self) -> Result<String, LazyCoderError> {
-        let snippet_hdlr: SnippetHandler = SnippetHandler::new(self.file_path.as_ref())?;
+        let path = PathBuf::from(self.file_path.clone());
+        let snippet_hdlr: SnippetHandler = SnippetHandler::new(&path)?;
         let snippet = snippet_hdlr.get_snippet(self.position)?;
         self.position += 1;
         self.save(false)?;
