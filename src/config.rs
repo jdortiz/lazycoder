@@ -2,7 +2,10 @@ use crate::{lazy_coder_error::LazyCoderError, snippet_handler::SnippetHandler};
 use directories::ProjectDirs;
 use log::{debug, error};
 use serde_derive::{Deserialize, Serialize};
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 static FILE_NAME: &str = "lazycoder.toml";
 
@@ -53,7 +56,8 @@ impl Config {
     }
 
     pub fn next(&mut self) -> Result<String, LazyCoderError> {
-        let snippet_hdlr: SnippetHandler = SnippetHandler::new(self.file_path.as_ref())?;
+        let path = PathBuf::from(self.file_path.clone());
+        let snippet_hdlr: SnippetHandler = SnippetHandler::new(&path)?;
         let snippet = snippet_hdlr.get_snippet(self.position)?;
         self.position += 1;
         self.save(false)?;
