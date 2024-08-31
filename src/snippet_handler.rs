@@ -5,29 +5,56 @@ use std::{
 
 use crate::lazy_coder_error::LazyCoderError;
 
-pub struct SnippetHandler {
+trait WholeFileReader {
+    fn read_to_string(&self) -> std::io::Result<String>;
+}
+
+struct ReaderShell {
     filename: PathBuf,
 }
 
-impl SnippetHandler {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<SnippetHandler, LazyCoderError> {
+impl ReaderShell {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<ReaderShell, LazyCoderError> {
         if path.as_ref().is_file() {
-            Ok(SnippetHandler {
+            Ok(ReaderShell {
                 filename: path.as_ref().to_path_buf(),
             })
         } else {
             Err(LazyCoderError::SnippetFileNotFound)
         }
     }
+}
+
+impl WholeFileReader for ReaderShell {
+    fn read_to_string(&self) -> std::io::Result<String> {
+        fs::read_to_string(&self.filename)
+    }
+}
+
+pub struct SnippetHandler<'a> {
+    reader: Box<dyn WholeFileReader + 'a>,
+}
+
+impl<'a> SnippetHandler<'a> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<SnippetHandler<'a>, LazyCoderError> {
+        Ok(SnippetHandler {
+            reader: Box::new(ReaderShell::new(path)?),
+        })
+    }
 
     pub fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError> {
-        match fs::read_to_string(&self.filename) {
+        match self.reader.read_to_string() {
             Ok(string) => match string.split("\n---\n\n").nth(position) {
                 Some(snippet) => Ok(snippet.to_owned()),
                 None => Err(LazyCoderError::RunOutOfSnippets),
             },
             Err(err) => Err(LazyCoderError::SnippetFileError(err)),
         }
+    }
+
+    #[cfg(test)]
+    fn set_reader<R: WholeFileReader + 'a>(&mut self, reader: R) {
+        self.reader = Box::new(reader);
     }
 }
 
