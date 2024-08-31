@@ -17,4 +17,4 @@ serde_derive = "^1.0"
 toml = "^0.7.6"
 
 [dev-dependencies]
-tempfile = "3.9.0"
+tempfile = "3.12.0"
