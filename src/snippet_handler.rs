@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::Path};
 
 use crate::lazy_coder_error::LazyCoderError;
 
@@ -7,8 +7,8 @@ pub struct SnippetHandler {
 }
 
 impl SnippetHandler {
-    pub fn new(path: &PathBuf) -> Result<SnippetHandler, LazyCoderError> {
-        if path.try_exists().is_ok_and(|x| x == true) {
+    pub fn new(path: &Path) -> Result<SnippetHandler, LazyCoderError> {
+        if path.is_file() {
             Ok(SnippetHandler {
                 filename: path.to_str().unwrap().to_owned(),
             })
@@ -30,14 +30,17 @@ impl SnippetHandler {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::path::PathBuf;
+
     use tempfile::NamedTempFile;
+
+    use super::*;
 
     #[test]
     fn configuration_successful_with_existing_file() {
         // Create temporary file
         let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-        let path = temp_file.path().to_path_buf();
+        let path = temp_file.path();
 
         assert!(SnippetHandler::new(&path).is_ok());
     }
