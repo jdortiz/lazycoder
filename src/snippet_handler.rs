@@ -1,16 +1,19 @@
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::lazy_coder_error::LazyCoderError;
 
 pub struct SnippetHandler {
-    filename: String,
+    filename: PathBuf,
 }
 
 impl SnippetHandler {
-    pub fn new(path: &Path) -> Result<SnippetHandler, LazyCoderError> {
-        if path.is_file() {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<SnippetHandler, LazyCoderError> {
+        if path.as_ref().is_file() {
             Ok(SnippetHandler {
-                filename: path.to_str().unwrap().to_owned(),
+                filename: path.as_ref().to_path_buf(),
             })
         } else {
             Err(LazyCoderError::SnippetFileNotFound)
