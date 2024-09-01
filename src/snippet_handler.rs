@@ -3,8 +3,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(test)]
+use mockall::automock;
+
 use crate::lazy_coder_error::LazyCoderError;
 
+#[cfg_attr(test, automock)]
 trait WholeFileReader {
     fn read_to_string(&self) -> std::io::Result<String>;
 }
@@ -60,7 +64,10 @@ impl<'a> SnippetHandler<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{
+        io::{Error, ErrorKind},
+        path::PathBuf,
+    };
 
     use tempfile::NamedTempFile;
 
@@ -84,5 +91,30 @@ mod tests {
         } // temp file is deleted here.
 
         assert!(SnippetHandler::new(&path).is_err());
+    }
+
+    #[test]
+    fn unavailable_snippet_file_causes_error() {
+        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
+        let path = temp_file.path();
+        let mut sut = SnippetHandler::new(&path).unwrap();
+        let mut mock_reader = MockWholeFileReader::new();
+        mock_reader
+            .expect_read_to_string()
+            .returning(|| Err(Error::new(ErrorKind::NotFound, "")));
+
+        sut.set_reader(mock_reader);
+
+        let result = sut.get_snippet(0);
+        assert!(
+            result.is_err(),
+            "Expected error when file not found, but obtained {:?}",
+            result
+        );
+        // assert!(matches!(result, Err(LazyCoderError::SnippetFileError(_))));
+        let Err(LazyCoderError::SnippetFileError(err)) = result else {
+            panic!("Unexpected error type: {:?}", result);
+        };
+        assert_eq!(err.kind(), ErrorKind::NotFound);
     }
 }
