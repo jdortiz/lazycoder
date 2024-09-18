@@ -30,18 +30,22 @@ pub struct CliArgs {
 #[derive(Subcommand)]
 pub enum Command {
     /// Use *FILENAME* to provide snippets
+    #[command(visible_alias = "s")]
     Start {
         /// Path to snippet file
         filename: PathBuf,
     },
     /// Provide next snippet
+    #[command(visible_alias = "n")]
     Next {},
     /// Rewind *n* snippet(s)
+    #[command(visible_alias = "r")]
     Rewind {
         /// Set n (by default is 1)
         count: Option<usize>,
     },
     /// Forward *n* snippet(s)
+    #[command(visible_alias = "f")]
     Forward {
         /// Set n (by default is 1)
         count: Option<usize>,
