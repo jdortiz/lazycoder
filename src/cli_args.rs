@@ -54,3 +54,15 @@ pub enum Command {
         count: Option<usize>,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_passes_verification() {
+        use clap::CommandFactory;
+
+        CliArgs::command().debug_assert();
+    }
+}
