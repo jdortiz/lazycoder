@@ -30,20 +30,39 @@ pub struct CliArgs {
 #[derive(Subcommand)]
 pub enum Command {
     /// Use *FILENAME* to provide snippets
+    #[command(visible_alias = "s")]
     Start {
         /// Path to snippet file
         filename: PathBuf,
     },
     /// Provide next snippet
+    #[command(visible_alias = "n")]
     Next {},
+    /// Provide next snippet without moving forward
+    #[command(visible_alias = "p")]
+    Peek {},
     /// Rewind *n* snippet(s)
+    #[command(visible_alias = "r")]
     Rewind {
         /// Set n (by default is 1)
         count: Option<usize>,
     },
     /// Forward *n* snippet(s)
+    #[command(visible_alias = "f")]
     Forward {
         /// Set n (by default is 1)
         count: Option<usize>,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_passes_verification() {
+        use clap::CommandFactory;
+
+        CliArgs::command().debug_assert();
+    }
 }

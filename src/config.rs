@@ -64,6 +64,13 @@ impl Config {
         Ok(snippet)
     }
 
+    pub fn peek(&mut self) -> Result<String, LazyCoderError> {
+        let path = PathBuf::from(self.file_path.clone());
+        let snippet_hdlr: SnippetHandler = SnippetHandler::new(&path)?;
+        let snippet = snippet_hdlr.get_snippet(self.position)?;
+        Ok(snippet)
+    }
+
     pub fn forward(&mut self, count: usize) -> Result<(), LazyCoderError> {
         self.position += count;
         self.save(false)
