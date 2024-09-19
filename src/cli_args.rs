@@ -38,6 +38,9 @@ pub enum Command {
     /// Provide next snippet
     #[command(visible_alias = "n")]
     Next {},
+    /// Provide next snippet without moving forward
+    #[command(visible_alias = "p")]
+    Peek {},
     /// Rewind *n* snippet(s)
     #[command(visible_alias = "r")]
     Rewind {
