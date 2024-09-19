@@ -43,6 +43,9 @@ fn main() {
         Command::Next {} => {
             next();
         }
+        Command::Peek {} => {
+            peek();
+        }
         Command::Forward { count } => {
             let count = count.unwrap_or(1);
             forward(count);
@@ -74,6 +77,29 @@ fn next() {
     match Config::read() {
         Ok(mut cfg) => {
             match cfg.next() {
+                Ok(snippet) => {
+                    print!("{snippet}");
+                    exit(0);
+                }
+                Err(err) => {
+                    error!("Failed to obtain next snippet: {err}.");
+                    exit(1);
+                }
+            };
+        }
+        Err(err) => {
+            error!("Failed to obtain next snippet: {err}.");
+            exit(1);
+        }
+    };
+}
+
+fn peek() {
+    info!("peek");
+
+    match Config::read() {
+        Ok(mut cfg) => {
+            match cfg.peek() {
                 Ok(snippet) => {
                     print!("{snippet}");
                     exit(0);
