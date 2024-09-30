@@ -11,6 +11,10 @@
 //! - reads next snippet
 //! - increments counter to next snippet
 //!
+//! `lazycoder peek`
+//! - reads from config file
+//! - reads next snippet
+//!
 //! `lazycoder rewind [number]`
 //! - decrements counter (number times)
 //! - returns nothing
@@ -28,12 +32,13 @@ use clap::Parser;
 use cli_args::{CliArgs, Command};
 use config::Config;
 use log::{debug, error, info};
-use std::{env, path::PathBuf, process::exit};
+use std::{env, path::Path, process::exit};
 
 fn main() {
     let cli = CliArgs::parse();
-
-    env::set_var("RUST_LOG", cli.level.to_string());
+    unsafe {
+        env::set_var("RUST_LOG", cli.level.to_string());
+    }
     env_logger::init();
 
     match cli.command {
@@ -57,8 +62,8 @@ fn main() {
     }
 }
 
-fn start(filename: &PathBuf) {
-    info!("Setting to work {}", filename.display().to_string());
+fn start(filename: &Path) {
+    info!("Setting to work {}", filename.display());
     match Config::new(filename) {
         Ok(_) => {
             debug!("Configuration successfully created.");
@@ -73,45 +78,35 @@ fn start(filename: &PathBuf) {
 
 fn next() {
     info!("Next");
-
-    match Config::read() {
-        Ok(mut cfg) => {
-            match cfg.next() {
-                Ok(snippet) => {
-                    print!("{snippet}");
-                    exit(0);
-                }
-                Err(err) => {
-                    error!("Failed to obtain next snippet: {err}.");
-                    exit(1);
-                }
-            };
-        }
-        Err(err) => {
-            error!("Failed to obtain next snippet: {err}.");
-            exit(1);
-        }
-    };
+    peek_or_next(true);
 }
 
 fn peek() {
     info!("peek");
+    peek_or_next(false);
+}
 
-    match Config::read() {
+fn peek_or_next(advance: bool) {
+    match Config::from_file() {
         Ok(mut cfg) => {
-            match cfg.peek() {
+            let result = if advance { cfg.next() } else { cfg.peek() };
+            match result {
                 Ok(snippet) => {
                     print!("{snippet}");
                     exit(0);
                 }
                 Err(err) => {
-                    error!("Failed to obtain next snippet: {err}.");
+                    error!(
+                        "Failed to obtain {} snippet: {}.",
+                        if advance { "next" } else { "current" },
+                        err
+                    );
                     exit(1);
                 }
             };
         }
         Err(err) => {
-            error!("Failed to obtain next snippet: {err}.");
+            error!("Failed to read config file: {err}.");
             exit(1);
         }
     };
@@ -119,7 +114,7 @@ fn peek() {
 
 fn forward(count: usize) {
     info!("Forward {count}");
-    match Config::read() {
+    match Config::from_file() {
         Ok(mut cfg) => {
             if let Err(err) = cfg.forward(count) {
                 error!("Failed to foward: {err}.");
@@ -137,7 +132,7 @@ fn forward(count: usize) {
 
 fn rewind(count: usize) {
     info!("Rewind {}", count);
-    match Config::read() {
+    match Config::from_file() {
         Ok(mut cfg) => {
             if let Err(err) = cfg.rewind(count) {
                 error!("Failed to rewind: {err}.");
