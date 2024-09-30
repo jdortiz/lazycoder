@@ -11,6 +11,10 @@
 //! - reads next snippet
 //! - increments counter to next snippet
 //!
+//! `lazycoder peek`
+//! - reads from config file
+//! - reads next snippet
+//!
 //! `lazycoder rewind [number]`
 //! - decrements counter (number times)
 //! - returns nothing
@@ -74,45 +78,35 @@ fn start(filename: &Path) {
 
 fn next() {
     info!("Next");
-
-    match Config::read() {
-        Ok(mut cfg) => {
-            match cfg.next() {
-                Ok(snippet) => {
-                    print!("{snippet}");
-                    exit(0);
-                }
-                Err(err) => {
-                    error!("Failed to obtain next snippet: {err}.");
-                    exit(1);
-                }
-            };
-        }
-        Err(err) => {
-            error!("Failed to obtain next snippet: {err}.");
-            exit(1);
-        }
-    };
+    peek_or_next(true);
 }
 
 fn peek() {
     info!("peek");
+    peek_or_next(false);
+}
 
-    match Config::read() {
+fn peek_or_next(advance: bool) {
+    match Config::from_file() {
         Ok(mut cfg) => {
-            match cfg.peek() {
+            let result = if advance { cfg.next() } else { cfg.peek() };
+            match result {
                 Ok(snippet) => {
                     print!("{snippet}");
                     exit(0);
                 }
                 Err(err) => {
-                    error!("Failed to obtain next snippet: {err}.");
+                    error!(
+                        "Failed to obtain {} snippet: {}.",
+                        if advance { "next" } else { "current" },
+                        err
+                    );
                     exit(1);
                 }
             };
         }
         Err(err) => {
-            error!("Failed to obtain next snippet: {err}.");
+            error!("Failed to read config file: {err}.");
             exit(1);
         }
     };
@@ -120,7 +114,7 @@ fn peek() {
 
 fn forward(count: usize) {
     info!("Forward {count}");
-    match Config::read() {
+    match Config::from_file() {
         Ok(mut cfg) => {
             if let Err(err) = cfg.forward(count) {
                 error!("Failed to foward: {err}.");
@@ -138,7 +132,7 @@ fn forward(count: usize) {
 
 fn rewind(count: usize) {
     info!("Rewind {}", count);
-    match Config::read() {
+    match Config::from_file() {
         Ok(mut cfg) => {
             if let Err(err) = cfg.rewind(count) {
                 error!("Failed to rewind: {err}.");
