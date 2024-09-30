@@ -32,8 +32,9 @@ use std::{env, path::PathBuf, process::exit};
 
 fn main() {
     let cli = CliArgs::parse();
-
-    env::set_var("RUST_LOG", cli.level.to_string());
+    unsafe {
+        env::set_var("RUST_LOG", cli.level.to_string());
+    }
     env_logger::init();
 
     match cli.command {
