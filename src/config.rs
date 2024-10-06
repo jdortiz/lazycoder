@@ -8,11 +8,11 @@ use std::{
 };
 
 #[cfg(not(test))]
-use aux::config_dir;
+use aux::{canonicalize, config_dir};
 #[cfg(not(test))]
 use std::fs::read_to_string;
 #[cfg(test)]
-use tests::aux::{config_dir, read_to_string};
+use tests::aux::{canonicalize, config_dir, read_to_string};
 
 static FILE_NAME: &str = "lazycoder.toml";
 
@@ -31,7 +31,7 @@ impl Config {
     ///
     /// * `path` - path to the file with the snippets that will be stored in the configuration.
     pub fn new(path: &Path) -> Result<Config, LazyCoderError> {
-        if let Ok(absolute_path) = fs::canonicalize(path) {
+        if let Ok(absolute_path) = canonicalize(path) {
             debug!("{:?} does exist", absolute_path);
             let new_config = Config {
                 file_path: absolute_path.to_str().unwrap().to_string(),
@@ -64,6 +64,9 @@ impl Config {
         }
     }
 
+    /// Read snippet from the file in the configuration, increment position, and update config file.
+    ///
+    ///
     pub fn next(&mut self) -> Result<String, LazyCoderError> {
         let path = PathBuf::from(self.file_path.clone());
         let snippet_hdlr: SnippetHandler = SnippetHandler::new(&path)?;
@@ -119,9 +122,16 @@ impl Config {
 
 #[cfg(not(test))]
 mod aux {
-    use std::path::PathBuf;
+    use std::{
+        fs, io,
+        path::{Path, PathBuf},
+    };
 
     use directories::ProjectDirs;
+
+    pub fn canonicalize<P: AsRef<Path>>(path: P) -> io::Result<PathBuf> {
+        fs::canonicalize(path)
+    }
 
     pub(crate) fn config_dir() -> Option<PathBuf> {
         Some(
@@ -139,8 +149,29 @@ mod tests {
     use super::*;
 
     thread_local! {
+    static CANONIZALIZE_ANSWER: Cell<Option<PathBuf>> = Cell::new(None);
     static CONFIG_DIR_ANSWER: Cell<Option<PathBuf>> = Cell::new(None);
     static READ_TO_STRING_ANSWER: Cell<Option<String>> = Cell::new(None);
+    }
+
+    #[test]
+    fn config_new_from_non_existing_path_fails() {
+        CANONIZALIZE_ANSWER.set(None);
+
+        let sut = Config::new(Path::new(""));
+
+        assert!(matches!(sut, Err(LazyCoderError::SnippetFileNotFound)));
+    }
+
+    #[test]
+    fn config_new_from_existing_path_is_created() {
+        let mut path = PathBuf::new();
+        path.push("/tmp");
+        CANONIZALIZE_ANSWER.set(Some(path));
+
+        let sut = Config::new(Path::new("/tmp"));
+
+        assert!(matches!(sut, Ok(cfg) if cfg.file_path == "/tmp" && cfg.position == 0));
     }
 
     #[test]
@@ -184,7 +215,14 @@ mod tests {
             path::{Path, PathBuf},
         };
 
-        use super::{CONFIG_DIR_ANSWER, READ_TO_STRING_ANSWER};
+        use super::{CANONIZALIZE_ANSWER, CONFIG_DIR_ANSWER, READ_TO_STRING_ANSWER};
+
+        pub fn canonicalize<P: AsRef<Path>>(_path: P) -> io::Result<PathBuf> {
+            match CANONIZALIZE_ANSWER.take() {
+                Some(path_buf) => Ok(path_buf),
+                None => Err(io::Error::other("Some error")),
+            }
+        }
 
         pub(crate) fn config_dir() -> Option<PathBuf> {
             CONFIG_DIR_ANSWER.take()
