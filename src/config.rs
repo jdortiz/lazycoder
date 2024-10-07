@@ -1,4 +1,7 @@
-use crate::{lazy_coder_error::LazyCoderError, snippet_handler::SnippetHandler};
+use crate::{
+    lazy_coder_error::LazyCoderError,
+    snippet_handler::{SnippetHandler, SnippetProvider},
+};
 use directories::ProjectDirs;
 use log::{debug, error};
 use serde_derive::{Deserialize, Serialize};
