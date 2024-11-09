@@ -155,6 +155,10 @@ mod aux {
 mod tests {
     use std::{cell::Cell, str::FromStr};
 
+    use mockall::predicate;
+
+    use crate::snippet_handler::MockSnippetProvider;
+
     use super::*;
 
     thread_local! {
@@ -295,6 +299,95 @@ mod tests {
                 "file_path = \"/some/config/path\"\nposition = 3\n"
             ))
         );
+    }
+
+    #[test]
+    fn next_snippet_increases_position_saves_and_returns_text() {
+        let mut path_buf = PathBuf::from("/some/config/path");
+        CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
+        PATH_EXISTS_ANSWER.set(true);
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov
+            .expect_get_snippet()
+            .with(predicate::eq(3))
+            .once()
+            .returning(|_| Ok(String::from("Some snippet")));
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        let snippet = sut.next();
+
+        assert!(
+            matches!(snippet, Ok(ref text) if text == "Some snippet"),
+            "Snippet: {:?}",
+            snippet
+        );
+        path_buf.push(FILE_NAME);
+        assert_eq!(WRITE_ARG_PATH.take(), Some(path_buf));
+        assert_eq!(
+            WRITE_ARG_CONTENTS.take(),
+            Some(String::from(
+                "file_path = \"/some/config/path\"\nposition = 4\n"
+            ))
+        );
+    }
+
+    #[test]
+    fn next_snippet_fails_if_snippet_provider_fails() {
+        let path_buf = PathBuf::from("/some/config/path");
+        CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
+        PATH_EXISTS_ANSWER.set(true);
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov
+            .expect_get_snippet()
+            .with(predicate::eq(3))
+            .once()
+            .returning(|_| Err(LazyCoderError::RunOutOfSnippets));
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        let snippet = sut.next();
+
+        assert!(
+            matches!(snippet, Err(LazyCoderError::RunOutOfSnippets)),
+            "Snippet: {:?}",
+            snippet
+        );
+        assert_eq!(WRITE_ARG_PATH.take(), None);
+        assert_eq!(WRITE_ARG_CONTENTS.take(), None);
+    }
+
+    #[test]
+    fn next_snippet_fails_if_save_fails() {
+        CONFIG_DIR_ANSWER.set(None);
+        //        PATH_EXISTS_ANSWER.set(false);
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov
+            .expect_get_snippet()
+            .with(predicate::eq(3))
+            .once()
+            .returning(|_| Ok(String::from("Some snippet")));
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        let snippet = sut.next();
+
+        assert!(
+            matches!(snippet, Err(LazyCoderError::ConfigDirError)),
+            "Snippet: {:?}",
+            snippet
+        );
+        assert_eq!(WRITE_ARG_PATH.take(), None);
+        assert_eq!(WRITE_ARG_CONTENTS.take(), None);
     }
 
     pub mod aux {

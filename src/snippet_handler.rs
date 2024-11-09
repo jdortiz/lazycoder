@@ -35,6 +35,7 @@ impl WholeFileReader for ReaderShell {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub trait SnippetProvider {
     fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError>;
 }
