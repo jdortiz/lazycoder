@@ -1,7 +1,4 @@
-use crate::{
-    lazy_coder_error::LazyCoderError,
-    snippet_handler::{SnippetHandler, SnippetProvider},
-};
+use crate::{lazy_coder_error::LazyCoderError, snippet_handler::SnippetProvider};
 use log::{debug, error};
 use serde_derive::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -78,10 +75,13 @@ impl Config {
         Ok(snippet)
     }
 
+    /// Read snippet from the file in the configuration without updating the config file.
+    ///
+    ///
     pub fn peek(&mut self) -> Result<String, LazyCoderError> {
         let path = PathBuf::from(self.file_path.clone());
-        let snippet_hdlr: SnippetHandler = SnippetHandler::new(&path)?;
-        let snippet = snippet_hdlr.get_snippet(self.position)?;
+        let snippet_prov = get_snippet_provider(&path)?;
+        let snippet = snippet_prov.get_snippet(self.position)?;
         Ok(snippet)
     }
 
@@ -366,7 +366,6 @@ mod tests {
     #[test]
     fn next_snippet_fails_if_save_fails() {
         CONFIG_DIR_ANSWER.set(None);
-        //        PATH_EXISTS_ANSWER.set(false);
         let mut snippet_prov = MockSnippetProvider::new();
         snippet_prov
             .expect_get_snippet()
@@ -388,6 +387,58 @@ mod tests {
         );
         assert_eq!(WRITE_ARG_PATH.take(), None);
         assert_eq!(WRITE_ARG_CONTENTS.take(), None);
+    }
+
+    #[test]
+    fn peek_snippet_only_returns_text() {
+        let path_buf = PathBuf::from("/some/config/path");
+        CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
+        PATH_EXISTS_ANSWER.set(true);
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov
+            .expect_get_snippet()
+            .with(predicate::eq(3))
+            .once()
+            .returning(|_| Ok(String::from("Some snippet")));
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        let snippet = sut.peek();
+
+        assert!(
+            matches!(snippet, Ok(ref text) if text == "Some snippet"),
+            "Snippet: {:?}",
+            snippet
+        );
+    }
+
+    #[test]
+    fn peek_snippet_fails_if_snippet_provider_fails() {
+        let path_buf = PathBuf::from("/some/config/path");
+        CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
+        PATH_EXISTS_ANSWER.set(true);
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov
+            .expect_get_snippet()
+            .with(predicate::eq(3))
+            .once()
+            .returning(|_| Err(LazyCoderError::RunOutOfSnippets));
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        let snippet = sut.peek();
+
+        assert!(
+            matches!(snippet, Err(LazyCoderError::RunOutOfSnippets)),
+            "Snippet: {:?}",
+            snippet
+        );
     }
 
     pub mod aux {
