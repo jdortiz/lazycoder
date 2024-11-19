@@ -64,8 +64,6 @@ impl Config {
     }
 
     /// Read snippet from the file in the configuration, increment position, and update config file.
-    ///
-    ///
     pub fn next(&mut self) -> Result<String, LazyCoderError> {
         let path = PathBuf::from(self.file_path.clone());
         let snippet_prov = get_snippet_provider(&path)?;
@@ -76,8 +74,6 @@ impl Config {
     }
 
     /// Read snippet from the file in the configuration without updating the config file.
-    ///
-    ///
     pub fn peek(&mut self) -> Result<String, LazyCoderError> {
         let path = PathBuf::from(self.file_path.clone());
         let snippet_prov = get_snippet_provider(&path)?;
@@ -85,11 +81,13 @@ impl Config {
         Ok(snippet)
     }
 
+    /// Change the configuration file to point to a snippet that is `count` forward.
     pub fn forward(&mut self, count: usize) -> Result<(), LazyCoderError> {
         self.position += count;
         self.save(false)
     }
 
+    /// Change the configuration file to point to a snippet that is `count` backward.
     pub fn rewind(&mut self, count: usize) -> Result<(), LazyCoderError> {
         if count <= self.position {
             self.position -= count;
@@ -438,6 +436,70 @@ mod tests {
             matches!(snippet, Err(LazyCoderError::RunOutOfSnippets)),
             "Snippet: {:?}",
             snippet
+        );
+    }
+
+    #[test]
+    fn forward_increases_position_and_saves() {
+        let mut path_buf = PathBuf::from("/some/config/path");
+        CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
+        PATH_EXISTS_ANSWER.set(true);
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        let result = sut.forward(4);
+
+        assert!(result.is_ok(), "Unexpected error moving forward");
+        path_buf.push(FILE_NAME);
+        assert_eq!(WRITE_ARG_PATH.take(), Some(path_buf));
+        assert_eq!(
+            WRITE_ARG_CONTENTS.take(),
+            Some(String::from(
+                "file_path = \"/some/config/path\"\nposition = 7\n"
+            ))
+        );
+    }
+
+    #[test]
+    fn rewind_decreases_position_and_saves() {
+        let mut path_buf = PathBuf::from("/some/config/path");
+        CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
+        PATH_EXISTS_ANSWER.set(true);
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        let result = sut.rewind(2);
+
+        assert!(result.is_ok(), "Unexpected error moving backward");
+        path_buf.push(FILE_NAME);
+        assert_eq!(WRITE_ARG_PATH.take(), Some(path_buf));
+        assert_eq!(
+            WRITE_ARG_CONTENTS.take(),
+            Some(String::from(
+                "file_path = \"/some/config/path\"\nposition = 1\n"
+            ))
+        );
+    }
+
+    #[test]
+    fn rewind_fails_when_decrement_moves_below_zero() {
+        let path_buf = PathBuf::from("/some/config/path");
+        CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
+        PATH_EXISTS_ANSWER.set(true);
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        let result = sut.rewind(4);
+
+        assert!(
+            matches!(result, Err(LazyCoderError::OperationOutOfRange)),
+            "Unexpected error moving backward"
         );
     }
 
