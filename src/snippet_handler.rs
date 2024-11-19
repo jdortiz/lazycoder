@@ -35,6 +35,11 @@ impl WholeFileReader for ReaderShell {
     }
 }
 
+#[cfg_attr(test, automock)]
+pub trait SnippetProvider {
+    fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError>;
+}
+
 pub struct SnippetHandler<'a> {
     reader: Box<dyn WholeFileReader + 'a>,
 }
@@ -46,7 +51,14 @@ impl<'a> SnippetHandler<'a> {
         })
     }
 
-    pub fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError> {
+    #[cfg(test)]
+    fn set_reader<R: WholeFileReader + 'a>(&mut self, reader: R) {
+        self.reader = Box::new(reader);
+    }
+}
+
+impl<'a> SnippetProvider for SnippetHandler<'a> {
+    fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError> {
         match self.reader.read_to_string() {
             Ok(string) => match string.split("\n---\n\n").nth(position) {
                 Some(snippet) => Ok(snippet.to_owned()),
@@ -54,11 +66,6 @@ impl<'a> SnippetHandler<'a> {
             },
             Err(err) => Err(LazyCoderError::SnippetFileError(err)),
         }
-    }
-
-    #[cfg(test)]
-    fn set_reader<R: WholeFileReader + 'a>(&mut self, reader: R) {
-        self.reader = Box::new(reader);
     }
 }
 
