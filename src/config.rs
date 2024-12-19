@@ -5,6 +5,8 @@ use std::path::{Path, PathBuf};
 
 #[cfg(not(test))]
 use aux::{config_dir, get_snippet_provider, path_exists};
+#[cfg(test)]
+use mockall::automock;
 #[cfg(not(test))]
 use std::fs::{canonicalize, create_dir_all, read_to_string, write};
 #[cfg(test)]
@@ -22,6 +24,7 @@ pub struct Config {
     position: usize,
 }
 
+#[cfg_attr(test, automock)]
 impl Config {
     /// Creates a configuration with the provided filename and sets the snippet number to 0 so it can start from the
     /// beginning.
@@ -29,7 +32,7 @@ impl Config {
     /// # Arguments
     ///
     /// * `path` - path to the file with the snippets that will be stored in the configuration.
-    pub fn new(path: &Path) -> Result<Config, LazyCoderError> {
+    pub fn new(path: &Path) -> Result<Self, LazyCoderError> {
         if let Ok(absolute_path) = canonicalize(path) {
             debug!("{:?} does exist", absolute_path);
             let new_config = Config {
@@ -47,7 +50,7 @@ impl Config {
     /// Creates a configuration from the file if it exists.
     ///
     /// Configuration is stored in a file following the standards for each operating system.
-    pub fn from_file() -> Result<Config, LazyCoderError> {
+    pub fn from_file() -> Result<Self, LazyCoderError> {
         if let Some(mut config_file) = config_dir() {
             config_file.push(FILE_NAME);
             debug!(
