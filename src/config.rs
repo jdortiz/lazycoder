@@ -1,4 +1,4 @@
-use crate::{lazy_coder_error::LazyCoderError, snippet_handler::SnippetProvider};
+use crate::lazy_coder_error::LazyCoderError;
 use log::{debug, error};
 use serde_derive::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -158,7 +158,7 @@ mod tests {
 
     use mockall::predicate;
 
-    use crate::snippet_handler::MockSnippetProvider;
+    use crate::snippet_handler::{MockSnippetProvider, SnippetProvider};
 
     use super::*;
 
