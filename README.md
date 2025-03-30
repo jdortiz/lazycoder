@@ -19,17 +19,11 @@ after that).
 
 ## Author
 
-Jorge D. Ortiz Fuentes, 2022
+(c) Jorge D. Ortiz Fuentes, 2022 - 2025
 
 ## Resources
 
-To learn more about Realm/MongoDB you have all these fantastic resources:
-
-- [💻 MongoDB DeveloperHub, central point for everything MongoDB/Realm related](https://www.mongodb.com/developer)
-- [💬 The MongoDB Forums](https://www.mongodb.com/community/forums/)
-- [👩‍💻 Developer Blog](https://developer.mongodb.com/learn/?content=Articles#main)
-- [🎓 MongoDB University](https://university.mongodb.com/)
-- [📺 Youtube Channel](https://www.youtube.com/c/MongoDBofficial)
-- [🎧 The MongoDB Podcast](https://developer.mongodb.com/learn/?content=Podcasts#main)
-- [🎧 Unicode(U+00D1) (in Spanish 🇪🇸) Podcast](https://twitter.com/UnicodeU00D1)
-- [🙋🏻‍♂️ Jorge's twitter](https://twitter.com/jdortiz)
+- [🙋‍♂️ Jorge's Bluesky](https://bsky.app/profile/jdortiz.bsky.social)
+- [🙋‍♂️ Jorge's Mastodon](https://fosstodon.org/@jdortiz)
+- [🙋‍♂️ Jorge's X](https://x.com/jdortiz)
+- [🙋‍♂️ Jorge's LinkedIn](https://www.linkedin.com/in/jorgeortiz/)

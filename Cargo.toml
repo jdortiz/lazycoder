@@ -1,5 +1,5 @@
 [package]
-authors = ["Jorge D. Ortiz-Fuentes <jorge.ortiz-fuentes@mongodb.com>"]
+authors = ["Jorge D. Ortiz-Fuentes <jdortiz@gmail.com>"]
 name = "lazycoder"
 description = "Simple snippet provider for espanso."
 version = "0.7.3"
