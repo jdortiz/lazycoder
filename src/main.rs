@@ -31,13 +31,14 @@ mod snippet_handler;
 use clap::Parser;
 use log::{debug, error, info};
 use mockall_double::double;
-use std::{env, path::Path, process::exit};
+use std::{env, path::Path};
+use eyre::{eyre, Result, WrapErr};
 
 use cli_args::{CliArgs, Command};
 #[double]
 use config::Config;
 
-fn main() {
+fn main() -> Result<()> {
     let cli = CliArgs::parse();
     unsafe {
         env::set_var("RUST_LOG", cli.level.to_string());
@@ -46,111 +47,98 @@ fn main() {
 
     match cli.command {
         Command::Start { filename } => {
-            exit(start(&filename));
+            start(&filename)?
         }
         Command::Next {} => {
-            exit(next());
+            next()?
         }
         Command::Peek {} => {
-            exit(peek());
+            peek()?
         }
         Command::Forward { count } => {
             let count = count.unwrap_or(1);
-            exit(forward(count));
+            forward(count)?
         }
         Command::Rewind { count } => {
             let count = count.unwrap_or(1);
-            exit(rewind(count));
+            rewind(count)?
         }
     }
+    Ok(())
 }
 
-fn start(filename: &Path) -> i32 {
+
+/// Restart the configuration for the given path.
+fn start(filename: &Path) -> Result<()> {
     info!("Setting to work {}", filename.display());
-    match Config::new(filename) {
-        Ok(_) => {
+
+    Config::new(filename)
+        .map(|_| {
             debug!("Configuration successfully created.");
-            0
-        }
-        Err(err) => {
+            ()
+        })
+        .map_err(|err| {
             error!("Failed to create configuration: {err}.");
-            1
-        }
-    }
+            eyre!("Failed to create configuration: {err}")
+        })
 }
 
-fn next() -> i32 {
+/// Print next snippet and advance.
+fn next() -> Result<()> {
     info!("Next");
     peek_or_next(true)
 }
 
-fn peek() -> i32 {
+/// Print next snippet and don't advance.
+fn peek() -> Result<()> {
     info!("peek");
     peek_or_next(false)
 }
 
-fn peek_or_next(advance: bool) -> i32 {
-    match Config::from_file() {
-        Ok(mut cfg) => {
-            let result = if advance { cfg.next() } else { cfg.peek() };
-            match result {
-                Ok(snippet) => {
-                    print!("{snippet}");
-                    0
-                }
-                Err(err) => {
-                    error!(
-                        "Failed to obtain {} snippet: {}.",
-                        if advance { "next" } else { "current" },
-                        err
-                    );
-                    1
-                }
-            }
-        }
-        Err(err) => {
-            error!("Failed to read config file: {err}.");
-            1
-        }
-    }
+/// Print next snippet and optionally advance.
+fn peek_or_next(advance: bool) -> Result<()> {
+    let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
+    let result = if advance { cfg.next() } else { cfg.peek() };
+    result
+        .map(|snippet| {
+            print!("{snippet}");
+            ()
+        })
+        .map_err(|err| {
+            error!(
+                "Failed to obtain {} snippet: {}.",
+                if advance { "next" } else { "current" },
+                err
+            );
+            eyre!(
+                "Failed to obtain {} snippet: {}.",
+                if advance { "next" } else { "current" },
+                err)
+        })
 }
 
-/// Increases the counter by the number provided in the argument. It returns the exit code to use.
-fn forward(count: usize) -> i32 {
+/// Increases the counter by the number provided in the argument. It returns a result of the operation.
+fn forward(count: usize) -> Result<()> {
     info!("Forward {count}");
-    match Config::from_file() {
-        Ok(mut cfg) => {
-            if let Err(err) = cfg.forward(count) {
-                error!("Failed to foward: {err}.");
-                1
-            } else {
-                0
-            }
-        }
-        Err(err) => {
+    let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
+    cfg.forward(count)
+        .map(|_| { () })
+        .map_err(|err| {
             error!("Failed to foward: {err}.");
-            1
-        }
-    }
+            eyre!("Failed to foward: {err}.")
+        })
 }
 
-/// Decreases the counter by the number provided in the argument. It returns the exit code to use.
-fn rewind(count: usize) -> i32 {
+/// Decreases the counter by the number provided in the argument. It returns a result of the operation.
+fn rewind(count: usize) -> Result<()> {
     info!("Rewind {}", count);
-    match Config::from_file() {
-        Ok(mut cfg) => {
-            if let Err(err) = cfg.rewind(count) {
-                error!("Failed to rewind: {err}.");
-                1
-            } else {
-                0
-            }
-        }
-        Err(err) => {
+    let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
+    cfg.rewind(count)
+        .map(|_| { () })
+        .map_err(|err| {
             error!("Failed to rewind: {err}.");
-            1
-        }
-    }
+            eyre!("Failed to foward: {err}.")
+        })
 }
 
 #[cfg(test)]
@@ -172,18 +160,18 @@ mod tests {
             Ok(config_mock)
         });
 
-        assert_eq!(start(&path), 0, "Unexpected exit code");
+        assert!(start(&path).is_ok(), "Unexpected result");
     }
 
     #[test]
-    fn start_exits_with_error_if_config_cannot_be_created() {
+    fn start_returns_error_if_config_cannot_be_created() {
         let path = PathBuf::from("/some/confid/file");
         let context = MockConfig::new_context();
         context
             .expect()
             .returning(|_| Err(LazyCoderError::ConfigDirError));
 
-        assert_eq!(start(&path), 1, "Unexpected exit code");
+        assert!(start(&path).is_err(), "Unexpected result");
     }
 
     #[test]
@@ -197,21 +185,21 @@ mod tests {
             Ok(config_mock)
         });
 
-        assert_eq!(next(), 0, "Unexpected exit code");
+        assert!(next().is_ok(), "Unexpected result");
     }
 
     #[test]
-    fn next_exits_with_error_if_no_config() {
+    fn next_returns_error_if_no_config() {
         let context = MockConfig::from_file_context();
         context
             .expect()
             .returning(|| Err(LazyCoderError::ConfigDirError));
 
-        assert_eq!(next(), 1, "Unexpected exit code");
+        assert!(next().is_err(), "Unexpected result");
     }
 
     #[test]
-    fn next_exits_with_error_if_config_operation_fails() {
+    fn next_returns_error_if_config_operation_fails() {
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -221,7 +209,7 @@ mod tests {
             Ok(config_mock)
         });
 
-        assert_eq!(next(), 1, "Unexpected exit code");
+        assert!(next().is_err(), "Unexpected result");
     }
 
     #[test]
@@ -235,21 +223,21 @@ mod tests {
             Ok(config_mock)
         });
 
-        assert_eq!(peek(), 0, "Unexpected exit code");
+        assert!(peek().is_ok(), "Unexpected result");
     }
 
     #[test]
-    fn peek_exits_with_error_if_no_config() {
+    fn peek_returns_error_if_no_config() {
         let context = MockConfig::from_file_context();
         context
             .expect()
             .returning(|| Err(LazyCoderError::ConfigDirError));
 
-        assert_eq!(peek(), 1, "Unexpected exit code");
+        assert!(peek().is_err(), "Unexpected result");
     }
 
     #[test]
-    fn peek_exits_with_error_if_config_operation_fails() {
+    fn peek_returns_error_if_config_operation_fails() {
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -259,7 +247,7 @@ mod tests {
             Ok(config_mock)
         });
 
-        assert_eq!(peek(), 1, "Unexpected exit code");
+        assert!(peek().is_err(), "Unexpected result");
     }
 
     #[test]
@@ -275,22 +263,22 @@ mod tests {
             Ok(config_mock)
         });
 
-        assert_eq!(forward(FORWARD_NUM), 0, "Unexpected exit code");
+        assert!(forward(FORWARD_NUM).is_ok(), "Unexpected result");
     }
 
     #[test]
-    fn forward_exits_with_error_if_no_config() {
+    fn forward_returns_error_if_no_config() {
         const FORWARD_NUM: usize = 5;
         let context = MockConfig::from_file_context();
         context
             .expect()
             .returning(|| Err(LazyCoderError::ConfigDirError));
 
-        assert_eq!(forward(FORWARD_NUM), 1, "Unexpected exit code");
+        assert!(forward(FORWARD_NUM).is_err(), "Unexpected result");
     }
 
     #[test]
-    fn forward_exits_with_error_if_config_operation_fails() {
+    fn forward_returns_error_if_config_operation_fails() {
         const FORWARD_NUM: usize = 5;
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
@@ -302,7 +290,7 @@ mod tests {
             Ok(config_mock)
         });
 
-        assert_eq!(forward(FORWARD_NUM), 1, "Unexpected exit code");
+        assert!(forward(FORWARD_NUM).is_err(), "Unexpected result");
     }
 
     #[test]
@@ -318,22 +306,22 @@ mod tests {
             Ok(config_mock)
         });
 
-        assert_eq!(rewind(REWIND_NUM), 0, "Unexpected exit code");
+        assert!(rewind(REWIND_NUM).is_ok(), "Unexpected result");
     }
 
     #[test]
-    fn rewind_exits_with_error_if_no_config() {
+    fn rewind_returns_error_if_no_config() {
         const REWIND_NUM: usize = 5;
         let context = MockConfig::from_file_context();
         context
             .expect()
             .returning(|| Err(LazyCoderError::ConfigDirError));
 
-        assert_eq!(rewind(REWIND_NUM), 1, "Unexpected exit code");
+        assert!(rewind(REWIND_NUM).is_err(), "Unexpected result");
     }
 
     #[test]
-    fn rewind_exits_with_error_if_config_operation_fails() {
+    fn rewind_returns_error_if_config_operation_fails() {
         const REWIND_NUM: usize = 5;
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
@@ -345,6 +333,6 @@ mod tests {
             Ok(config_mock)
         });
 
-        assert_eq!(rewind(REWIND_NUM), 1, "Unexpected exit code");
+        assert!(rewind(REWIND_NUM).is_err(), "Unexpected result");
     }
 }
