@@ -70,11 +70,8 @@ mod tests {
     #[test]
     fn display_snippet_file_error() {
         assert_eq!(
-            LazyCoderError::SnippetFileError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "some file error"
-            ))
-            .to_string(),
+            LazyCoderError::SnippetFileError(std::io::Error::other("some file error".to_string()))
+                .to_string(),
             "snippet file error: some file error"
         )
     }
@@ -98,11 +95,8 @@ mod tests {
     #[test]
     fn display_config_file_error() {
         assert_eq!(
-            LazyCoderError::ConfigFileError(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "some file error"
-            ))
-            .to_string(),
+            LazyCoderError::ConfigFileError(std::io::Error::other("some file error".to_string()))
+                .to_string(),
             "configuration file error: some file error"
         )
     }
