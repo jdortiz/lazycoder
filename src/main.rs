@@ -133,14 +133,18 @@ fn rewind(count: usize) -> Result<()> {
 mod tests {
     use mockall::predicate;
     use std::path::PathBuf;
+    use std::sync::Mutex;
 
     use crate::config::MockConfig;
     use crate::lazy_coder_error::LazyCoderError;
 
     use super::*;
 
+    static MTX: Mutex<()> = Mutex::new(());
+
     #[test]
     fn start_creates_config_and_reports_ok() {
+        let _mtx = MTX.lock();
         let path = PathBuf::from("/some/confid/file");
         let context = MockConfig::new_context();
         context.expect().returning(|_| {
@@ -164,6 +168,7 @@ mod tests {
 
     #[test]
     fn next_uses_config_and_reports_ok() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -178,6 +183,7 @@ mod tests {
 
     #[test]
     fn next_returns_error_if_no_config() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context
             .expect()
@@ -188,6 +194,7 @@ mod tests {
 
     #[test]
     fn next_returns_error_if_config_operation_fails() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -202,6 +209,7 @@ mod tests {
 
     #[test]
     fn peek_uses_config_and_reports_ok() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -216,6 +224,7 @@ mod tests {
 
     #[test]
     fn peek_returns_error_if_no_config() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context
             .expect()
@@ -226,6 +235,7 @@ mod tests {
 
     #[test]
     fn peek_returns_error_if_config_operation_fails() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -241,6 +251,7 @@ mod tests {
     #[test]
     fn forward_uses_config_and_reports_ok() {
         const FORWARD_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -257,6 +268,7 @@ mod tests {
     #[test]
     fn forward_returns_error_if_no_config() {
         const FORWARD_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context
             .expect()
@@ -268,6 +280,7 @@ mod tests {
     #[test]
     fn forward_returns_error_if_config_operation_fails() {
         const FORWARD_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -284,6 +297,7 @@ mod tests {
     #[test]
     fn rewind_uses_config_and_reports_ok() {
         const REWIND_NUM: usize = 3;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -300,6 +314,7 @@ mod tests {
     #[test]
     fn rewind_returns_error_if_no_config() {
         const REWIND_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context
             .expect()
@@ -311,6 +326,7 @@ mod tests {
     #[test]
     fn rewind_returns_error_if_config_operation_fails() {
         const REWIND_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
