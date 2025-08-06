@@ -34,7 +34,7 @@ impl Config {
     /// * `path` - path to the file with the snippets that will be stored in the configuration.
     pub fn new(path: &Path) -> Result<Self, LazyCoderError> {
         if let Ok(absolute_path) = canonicalize(path) {
-            debug!("{:?} does exist", absolute_path);
+            debug!("{absolute_path:?} does exist");
             let new_config = Config {
                 file_path: absolute_path.to_str().unwrap().to_string(),
                 position: 0,
@@ -163,21 +163,21 @@ mod tests {
     use super::*;
 
     thread_local! {
-        static CANONIZALIZE_ANSWER: Cell<Option<PathBuf>> = Cell::new(None);
-        static CONFIG_DIR_ANSWER: Cell<Option<PathBuf>> = Cell::new(None);
-        static CREATE_DIR_OK_ANSWER: Cell<bool> = Cell::new(true);
-        static CREATE_DIR_ALL_ARG: Cell<Option<PathBuf>> = Cell::new(None);
-        static PATH_EXISTS_ANSWER: Cell<bool> = Cell::new(true);
-        static READ_TO_STRING_ANSWER: Cell<Option<String>> = Cell::new(None);
-        static SNIPPET_PROVIDER_ANSWER: Cell<Option<Box<dyn SnippetProvider>>> = Cell::new(None);
-        static WRITE_OK_ANSWER: Cell<bool> = Cell::new(true);
-        static WRITE_ARG_PATH: Cell<Option<PathBuf>> = Cell::new(None);
-        static WRITE_ARG_CONTENTS: Cell<Option<String>> = Cell::new(None);
+        static CANONICALIZE_ANSWER: Cell<Option<PathBuf>> = const { Cell::new(None) };
+        static CONFIG_DIR_ANSWER: Cell<Option<PathBuf>> = const { Cell::new(None) };
+        static CREATE_DIR_OK_ANSWER: Cell<bool> = const { Cell::new(true) };
+        static CREATE_DIR_ALL_ARG: Cell<Option<PathBuf>> = const { Cell::new(None) };
+        static PATH_EXISTS_ANSWER: Cell<bool> = const { Cell::new(true) };
+        static READ_TO_STRING_ANSWER: Cell<Option<String>> = const { Cell::new(None) };
+        static SNIPPET_PROVIDER_ANSWER: Cell<Option<Box<dyn SnippetProvider>>> = const { Cell::new(None) };
+        static WRITE_OK_ANSWER: Cell<bool> = const { Cell::new(true) };
+        static WRITE_ARG_PATH: Cell<Option<PathBuf>> = const { Cell::new(None) };
+        static WRITE_ARG_CONTENTS: Cell<Option<String>> = const { Cell::new(None) };
     }
 
     #[test]
     fn config_new_from_non_existing_path_fails() {
-        CANONIZALIZE_ANSWER.set(None);
+        CANONICALIZE_ANSWER.set(None);
 
         let sut = Config::new(Path::new(""));
 
@@ -188,7 +188,7 @@ mod tests {
     fn config_new_from_existing_path_is_created() {
         let mut path = PathBuf::new();
         path.push("/tmp");
-        CANONIZALIZE_ANSWER.set(Some(path));
+        CANONICALIZE_ANSWER.set(Some(path));
         CONFIG_DIR_ANSWER.set(Some(PathBuf::from_str("Some path").unwrap()));
 
         let sut = Config::new(Path::new("/tmp"));
@@ -323,8 +323,7 @@ mod tests {
 
         assert!(
             matches!(snippet, Ok(ref text) if text == "Some snippet"),
-            "Snippet: {:?}",
-            snippet
+            "Snippet: {snippet:?}"
         );
         path_buf.push(FILE_NAME);
         assert_eq!(WRITE_ARG_PATH.take(), Some(path_buf));
@@ -357,8 +356,7 @@ mod tests {
 
         assert!(
             matches!(snippet, Err(LazyCoderError::RunOutOfSnippets)),
-            "Snippet: {:?}",
-            snippet
+            "Snippet: {snippet:?}"
         );
         assert_eq!(WRITE_ARG_PATH.take(), None);
         assert_eq!(WRITE_ARG_CONTENTS.take(), None);
@@ -383,8 +381,7 @@ mod tests {
 
         assert!(
             matches!(snippet, Err(LazyCoderError::ConfigDirError)),
-            "Snippet: {:?}",
-            snippet
+            "Snippet: {snippet:?}"
         );
         assert_eq!(WRITE_ARG_PATH.take(), None);
         assert_eq!(WRITE_ARG_CONTENTS.take(), None);
@@ -411,8 +408,7 @@ mod tests {
 
         assert!(
             matches!(snippet, Ok(ref text) if text == "Some snippet"),
-            "Snippet: {:?}",
-            snippet
+            "Snippet: {snippet:?}"
         );
     }
 
@@ -437,8 +433,7 @@ mod tests {
 
         assert!(
             matches!(snippet, Err(LazyCoderError::RunOutOfSnippets)),
-            "Snippet: {:?}",
-            snippet
+            "Snippet: {snippet:?}"
         );
     }
 
@@ -515,13 +510,13 @@ mod tests {
         use crate::{lazy_coder_error::LazyCoderError, snippet_handler::SnippetProvider};
 
         use super::{
-            CANONIZALIZE_ANSWER, CONFIG_DIR_ANSWER, CREATE_DIR_ALL_ARG, CREATE_DIR_OK_ANSWER,
+            CANONICALIZE_ANSWER, CONFIG_DIR_ANSWER, CREATE_DIR_ALL_ARG, CREATE_DIR_OK_ANSWER,
             PATH_EXISTS_ANSWER, READ_TO_STRING_ANSWER, SNIPPET_PROVIDER_ANSWER, WRITE_ARG_CONTENTS,
             WRITE_ARG_PATH, WRITE_OK_ANSWER,
         };
 
         pub fn canonicalize<P: AsRef<Path>>(_path: P) -> io::Result<PathBuf> {
-            match CANONIZALIZE_ANSWER.take() {
+            match CANONICALIZE_ANSWER.take() {
                 Some(path_buf) => Ok(path_buf),
                 None => Err(io::Error::other("Some error")),
             }

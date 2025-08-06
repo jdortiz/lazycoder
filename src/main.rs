@@ -29,10 +29,10 @@ mod lazy_coder_error;
 mod snippet_handler;
 
 use clap::Parser;
+use eyre::{eyre, Result, WrapErr};
 use log::{debug, error, info};
 use mockall_double::double;
 use std::{env, path::Path};
-use eyre::{eyre, Result, WrapErr};
 
 use cli_args::{CliArgs, Command};
 #[double]
@@ -46,15 +46,9 @@ fn main() -> Result<()> {
     env_logger::init();
 
     match cli.command {
-        Command::Start { filename } => {
-            start(&filename)?
-        }
-        Command::Next {} => {
-            next()?
-        }
-        Command::Peek {} => {
-            peek()?
-        }
+        Command::Start { filename } => start(&filename)?,
+        Command::Next {} => next()?,
+        Command::Peek {} => peek()?,
         Command::Forward { count } => {
             let count = count.unwrap_or(1);
             forward(count)?
@@ -67,7 +61,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-
 /// Restart the configuration for the given path.
 fn start(filename: &Path) -> Result<()> {
     info!("Setting to work {}", filename.display());
@@ -75,7 +68,6 @@ fn start(filename: &Path) -> Result<()> {
     Config::new(filename)
         .map(|_| {
             debug!("Configuration successfully created.");
-            ()
         })
         .map_err(|err| {
             error!("Failed to create configuration: {err}.");
@@ -102,7 +94,6 @@ fn peek_or_next(advance: bool) -> Result<()> {
     result
         .map(|snippet| {
             print!("{snippet}");
-            ()
         })
         .map_err(|err| {
             error!(
@@ -113,7 +104,8 @@ fn peek_or_next(advance: bool) -> Result<()> {
             eyre!(
                 "Failed to obtain {} snippet: {}.",
                 if advance { "next" } else { "current" },
-                err)
+                err
+            )
         })
 }
 
@@ -121,38 +113,38 @@ fn peek_or_next(advance: bool) -> Result<()> {
 fn forward(count: usize) -> Result<()> {
     info!("Forward {count}");
     let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    cfg.forward(count)
-        .map(|_| { () })
-        .map_err(|err| {
-            error!("Failed to foward: {err}.");
-            eyre!("Failed to foward: {err}.")
-        })
+    cfg.forward(count).map(|_| ()).map_err(|err| {
+        error!("Failed to forward: {err}.");
+        eyre!("Failed to forward: {err}.")
+    })
 }
 
 /// Decreases the counter by the number provided in the argument. It returns a result of the operation.
 fn rewind(count: usize) -> Result<()> {
-    info!("Rewind {}", count);
+    info!("Rewind {count}");
     let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    cfg.rewind(count)
-        .map(|_| { () })
-        .map_err(|err| {
-            error!("Failed to rewind: {err}.");
-            eyre!("Failed to foward: {err}.")
-        })
+    cfg.rewind(count).map(|_| ()).map_err(|err| {
+        error!("Failed to rewind: {err}.");
+        eyre!("Failed to rewind: {err}.")
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use mockall::predicate;
     use std::path::PathBuf;
+    use std::sync::Mutex;
 
     use crate::config::MockConfig;
     use crate::lazy_coder_error::LazyCoderError;
 
     use super::*;
 
+    static MTX: Mutex<()> = Mutex::new(());
+
     #[test]
     fn start_creates_config_and_reports_ok() {
+        let _mtx = MTX.lock();
         let path = PathBuf::from("/some/confid/file");
         let context = MockConfig::new_context();
         context.expect().returning(|_| {
@@ -176,6 +168,7 @@ mod tests {
 
     #[test]
     fn next_uses_config_and_reports_ok() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -190,6 +183,7 @@ mod tests {
 
     #[test]
     fn next_returns_error_if_no_config() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context
             .expect()
@@ -200,6 +194,7 @@ mod tests {
 
     #[test]
     fn next_returns_error_if_config_operation_fails() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -214,6 +209,7 @@ mod tests {
 
     #[test]
     fn peek_uses_config_and_reports_ok() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -228,6 +224,7 @@ mod tests {
 
     #[test]
     fn peek_returns_error_if_no_config() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context
             .expect()
@@ -238,6 +235,7 @@ mod tests {
 
     #[test]
     fn peek_returns_error_if_config_operation_fails() {
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -253,6 +251,7 @@ mod tests {
     #[test]
     fn forward_uses_config_and_reports_ok() {
         const FORWARD_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -269,6 +268,7 @@ mod tests {
     #[test]
     fn forward_returns_error_if_no_config() {
         const FORWARD_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context
             .expect()
@@ -280,6 +280,7 @@ mod tests {
     #[test]
     fn forward_returns_error_if_config_operation_fails() {
         const FORWARD_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -296,6 +297,7 @@ mod tests {
     #[test]
     fn rewind_uses_config_and_reports_ok() {
         const REWIND_NUM: usize = 3;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
@@ -312,6 +314,7 @@ mod tests {
     #[test]
     fn rewind_returns_error_if_no_config() {
         const REWIND_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context
             .expect()
@@ -323,6 +326,7 @@ mod tests {
     #[test]
     fn rewind_returns_error_if_config_operation_fails() {
         const REWIND_NUM: usize = 5;
+        let _mtx = MTX.lock();
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
