@@ -86,7 +86,7 @@ mod tests {
         let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
         let path = temp_file.path();
 
-        assert!(SnippetHandler::new(&path).is_ok());
+        assert!(SnippetHandler::new(path).is_ok());
     }
 
     #[test]
@@ -104,7 +104,7 @@ mod tests {
     fn unavailable_snippet_file_causes_error() {
         let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
         let path = temp_file.path();
-        let mut sut = SnippetHandler::new(&path).unwrap();
+        let mut sut = SnippetHandler::new(path).unwrap();
         let mut mock_reader = MockWholeFileReader::new();
         mock_reader
             .expect_read_to_string()
@@ -115,12 +115,11 @@ mod tests {
         let result = sut.get_snippet(0);
         assert!(
             result.is_err(),
-            "Expected error when file not found, but obtained {:?}",
-            result
+            "Expected error when file not found, but obtained {result:?}"
         );
         // assert!(matches!(result, Err(LazyCoderError::SnippetFileError(_))));
         let Err(LazyCoderError::SnippetFileError(err)) = result else {
-            panic!("Unexpected error type: {:?}", result);
+            panic!("Unexpected error type: {result:?}");
         };
         assert_eq!(err.kind(), ErrorKind::NotFound);
     }
@@ -129,7 +128,7 @@ mod tests {
     fn first_snippet_is_returned() {
         let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
         let path = temp_file.path();
-        let mut sut = SnippetHandler::new(&path).unwrap();
+        let mut sut = SnippetHandler::new(path).unwrap();
         let mut mock_reader = MockWholeFileReader::new();
         mock_reader.expect_read_to_string().returning(|| {
             Ok(String::from(
@@ -142,8 +141,7 @@ mod tests {
         let result = sut.get_snippet(0);
         assert!(
             result.is_ok(),
-            "Unexpected error when getting snippet: {:?}",
-            result
+            "Unexpected error when getting snippet: {result:?}"
         );
         if let Ok(snippet) = result {
             assert_eq!(snippet, "First snippet\n");
@@ -154,7 +152,7 @@ mod tests {
     fn middle_snippet_is_returned() {
         let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
         let path = temp_file.path();
-        let mut sut = SnippetHandler::new(&path).unwrap();
+        let mut sut = SnippetHandler::new(path).unwrap();
         let mut mock_reader = MockWholeFileReader::new();
         mock_reader.expect_read_to_string().returning(|| {
             Ok(String::from(
@@ -167,8 +165,7 @@ mod tests {
         let result = sut.get_snippet(1);
         assert!(
             result.is_ok(),
-            "Unexpected error when getting snippet: {:?}",
-            result
+            "Unexpected error when getting snippet: {result:?}"
         );
         if let Ok(snippet) = result {
             assert_eq!(snippet, "Second snippet\n");
@@ -179,7 +176,7 @@ mod tests {
     fn last_snippet_is_returned() {
         let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
         let path = temp_file.path();
-        let mut sut = SnippetHandler::new(&path).unwrap();
+        let mut sut = SnippetHandler::new(path).unwrap();
         let mut mock_reader = MockWholeFileReader::new();
         mock_reader.expect_read_to_string().returning(|| {
             Ok(String::from(
@@ -192,8 +189,7 @@ mod tests {
         let result = sut.get_snippet(2);
         assert!(
             result.is_ok(),
-            "Unexpected error when getting snippet: {:?}",
-            result
+            "Unexpected error when getting snippet: {result:?}"
         );
         if let Ok(snippet) = result {
             assert_eq!(snippet, "Third snippet\n");
@@ -204,7 +200,7 @@ mod tests {
     fn unexisting_snippet_returns_error() {
         let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
         let path = temp_file.path();
-        let mut sut = SnippetHandler::new(&path).unwrap();
+        let mut sut = SnippetHandler::new(path).unwrap();
         let mut mock_reader = MockWholeFileReader::new();
         mock_reader.expect_read_to_string().returning(|| {
             Ok(String::from(
@@ -217,8 +213,7 @@ mod tests {
         let result = sut.get_snippet(4);
         assert!(
             result.is_err(),
-            "Expected error when requesting unexisting snippet, but got: {:?}",
-            result
+            "Expected error when requesting unexisting snippet, but got: {result:?}"
         );
         assert!(matches!(result, Err(LazyCoderError::RunOutOfSnippets)));
     }
@@ -227,7 +222,7 @@ mod tests {
     fn first_snippet_is_empty_for_empty_file() {
         let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
         let path = temp_file.path();
-        let mut sut = SnippetHandler::new(&path).unwrap();
+        let mut sut = SnippetHandler::new(path).unwrap();
         let mut mock_reader = MockWholeFileReader::new();
         mock_reader
             .expect_read_to_string()
@@ -238,8 +233,7 @@ mod tests {
         let result = sut.get_snippet(0);
         assert!(
             result.is_ok(),
-            "Unexpected error when getting snippet: {:?}",
-            result
+            "Unexpected error when getting snippet: {result:?}"
         );
         if let Ok(snippet) = result {
             assert_eq!(snippet, "");
