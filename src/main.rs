@@ -157,6 +157,7 @@ mod tests {
 
     #[test]
     fn start_returns_error_if_config_cannot_be_created() {
+        let _mtx = MTX.lock();
         let path = PathBuf::from("/some/confid/file");
         let context = MockConfig::new_context();
         context
