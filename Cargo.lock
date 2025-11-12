@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "lazycoder"
-version = "0.7.7"
+version = "0.7.8"
 dependencies = [
  "clap",
  "directories",
