@@ -17,7 +17,7 @@ use tests::aux::{
 
 static FILE_NAME: &str = "lazycoder.toml";
 
-/// LazyCoder configuration.
+/// `LazyCoder` configuration.
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Config {
     file_path: String,
@@ -34,7 +34,7 @@ impl Config {
     /// * `path` - path to the file with the snippets that will be stored in the configuration.
     pub fn new(path: &Path) -> Result<Self, LazyCoderError> {
         if let Ok(absolute_path) = canonicalize(path) {
-            debug!("{absolute_path:?} does exist");
+            debug!("{} does exist", absolute_path.display());
             let new_config = Config {
                 file_path: absolute_path.to_str().unwrap().to_string(),
                 position: 0,

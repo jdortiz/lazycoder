@@ -64,7 +64,7 @@ mod tests {
         assert_eq!(
             LazyCoderError::SnippetFileNotFound.to_string(),
             "snippet file not found"
-        )
+        );
     }
 
     #[test]
@@ -73,7 +73,7 @@ mod tests {
             LazyCoderError::SnippetFileError(std::io::Error::other("some file error".to_string()))
                 .to_string(),
             "snippet file error: some file error"
-        )
+        );
     }
 
     #[test]
@@ -81,7 +81,7 @@ mod tests {
         assert_eq!(
             LazyCoderError::RunOutOfSnippets.to_string(),
             "out of range of available snippets"
-        )
+        );
     }
 
     #[test]
@@ -89,7 +89,7 @@ mod tests {
         assert_eq!(
             LazyCoderError::ConfigDirError.to_string(),
             "no valid home directory path could be retrieved"
-        )
+        );
     }
 
     #[test]
@@ -98,7 +98,7 @@ mod tests {
             LazyCoderError::ConfigFileError(std::io::Error::other("some file error".to_string()))
                 .to_string(),
             "configuration file error: some file error"
-        )
+        );
     }
 
     #[test]
@@ -106,7 +106,7 @@ mod tests {
         assert_eq!(
             LazyCoderError::ConfigEncoding(toml::de::Error::custom("some file error")).to_string(),
             "configuration encoding error: some file error\n" // Newline added by toml::de::Error
-        )
+        );
     }
 
     #[test]
@@ -114,7 +114,7 @@ mod tests {
         assert_eq!(
             LazyCoderError::OperationOutOfRange.to_string(),
             "operation out of range"
-        )
+        );
     }
 
     #[test]

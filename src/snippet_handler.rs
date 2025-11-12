@@ -57,7 +57,7 @@ impl<'a> SnippetHandler<'a> {
     }
 }
 
-impl<'a> SnippetProvider for SnippetHandler<'a> {
+impl SnippetProvider for SnippetHandler<'_> {
     fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError> {
         match self.reader.read_to_string() {
             Ok(string) => match string.split("\n---\n\n").nth(position) {
@@ -226,7 +226,7 @@ mod tests {
         let mut mock_reader = MockWholeFileReader::new();
         mock_reader
             .expect_read_to_string()
-            .returning(|| Ok(String::from("")));
+            .returning(|| Ok(String::new()));
 
         sut.set_reader(mock_reader);
 

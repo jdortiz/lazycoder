@@ -29,7 +29,7 @@ mod lazy_coder_error;
 mod snippet_handler;
 
 use clap::Parser;
-use eyre::{eyre, Result, WrapErr};
+use eyre::{Result, WrapErr, eyre};
 use log::{debug, error, info};
 use mockall_double::double;
 use std::{env, path::Path};
@@ -51,11 +51,11 @@ fn main() -> Result<()> {
         Command::Peek {} => peek()?,
         Command::Forward { count } => {
             let count = count.unwrap_or(1);
-            forward(count)?
+            forward(count)?;
         }
         Command::Rewind { count } => {
             let count = count.unwrap_or(1);
-            rewind(count)?
+            rewind(count)?;
         }
     }
     Ok(())
@@ -113,7 +113,7 @@ fn peek_or_next(advance: bool) -> Result<()> {
 fn forward(count: usize) -> Result<()> {
     info!("Forward {count}");
     let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    cfg.forward(count).map(|_| ()).map_err(|err| {
+    cfg.forward(count).map_err(|err| {
         error!("Failed to forward: {err}.");
         eyre!("Failed to forward: {err}.")
     })
@@ -123,7 +123,7 @@ fn forward(count: usize) -> Result<()> {
 fn rewind(count: usize) -> Result<()> {
     info!("Rewind {count}");
     let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    cfg.rewind(count).map(|_| ()).map_err(|err| {
+    cfg.rewind(count).map_err(|err| {
         error!("Failed to rewind: {err}.");
         eyre!("Failed to rewind: {err}.")
     })
