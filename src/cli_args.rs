@@ -21,9 +21,10 @@ use std::path::PathBuf;
 {all-args}{after-help}")] // This is required to show the author
 pub struct CliArgs {
     /// Verbosity level
-    #[clap(short, long, value_enum, value_name = "LEVEL", default_value = "warn")]
-    pub level: log::LevelFilter,
-    #[clap(subcommand)]
+    #[arg(short, long, value_enum, value_name = "LEVEL")]
+    pub level: Option<log::LevelFilter>,
+
+    #[command(subcommand)]
     pub command: Command,
 }
 
