@@ -32,7 +32,7 @@ use clap::Parser;
 use eyre::{Result, WrapErr, eyre};
 use log::{debug, error, info};
 use mockall_double::double;
-use std::{env, path::Path};
+use std::path::Path;
 
 use cli_args::{CliArgs, Command};
 #[double]
@@ -40,10 +40,11 @@ use config::Config;
 
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
-    unsafe {
-        env::set_var("RUST_LOG", cli.level.to_string());
+    if let Some(level) = cli.level {
+        env_logger::builder().filter(None, level).init();
+    } else {
+        env_logger::init();
     }
-    env_logger::init();
 
     match cli.command {
         Command::Start { filename } => start(&filename)?,
