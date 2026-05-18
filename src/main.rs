@@ -28,15 +28,17 @@ mod config;
 mod lazy_coder_error;
 mod snippet_handler;
 
-use clap::Parser;
-use eyre::{Result, WrapErr, eyre};
-use log::{debug, error, info};
-use mockall_double::double;
 use std::path::Path;
 
-use cli_args::{CliArgs, Command};
-#[double]
+use clap::Parser;
+#[cfg_attr(test, double)]
 use config::Config;
+use eyre::{Result, WrapErr, eyre};
+use log::{debug, error, info};
+#[cfg(test)]
+use mockall_double::double;
+
+use crate::cli_args::{CliArgs, Command};
 
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
