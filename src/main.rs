@@ -1,4 +1,4 @@
-//! Lazycoder - A simple snippet generator for expanso
+//! Lazycoder - A simple snippet generator for espanso
 //!
 //! `lazycoder start </filepath/demo.lazycoder>`
 //! - works with only one demo at a time
