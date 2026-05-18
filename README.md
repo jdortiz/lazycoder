@@ -19,7 +19,7 @@ after that).
 
 ## Author
 
-(c) Jorge D. Ortiz Fuentes, 2022 - 2025
+(c) Jorge D. Ortiz Fuentes, 2022 - 2026
 
 ## Resources
 

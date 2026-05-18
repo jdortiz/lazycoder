@@ -1,7 +1,9 @@
-use crate::lazy_coder_error::LazyCoderError;
+use std::path::Path;
+
 use log::{debug, error};
 use serde_derive::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+
+use crate::lazy_coder_error::LazyCoderError;
 
 #[cfg(not(test))]
 use aux::{config_dir, get_snippet_provider, path_exists};
@@ -36,7 +38,10 @@ impl Config {
         if let Ok(absolute_path) = canonicalize(path) {
             debug!("{} does exist", absolute_path.display());
             let new_config = Config {
-                file_path: absolute_path.to_str().unwrap().to_string(),
+                file_path: absolute_path
+                    .to_str()
+                    .ok_or(LazyCoderError::ConfigDirError)?
+                    .to_string(),
                 position: 0,
             };
             new_config.save(true)?;
@@ -68,7 +73,7 @@ impl Config {
 
     /// Read snippet from the file in the configuration, increment position, and update config file.
     pub fn next(&mut self) -> Result<String, LazyCoderError> {
-        let path = PathBuf::from(self.file_path.clone());
+        let path = Path::new(&self.file_path);
         let snippet_prov = get_snippet_provider(&path)?;
         let snippet = snippet_prov.get_snippet(self.position)?;
         self.position += 1;
@@ -77,14 +82,15 @@ impl Config {
     }
 
     /// Read snippet from the file in the configuration without updating the config file.
-    pub fn peek(&mut self) -> Result<String, LazyCoderError> {
-        let path = PathBuf::from(self.file_path.clone());
+    pub fn peek(&self) -> Result<String, LazyCoderError> {
+        let path = Path::new(&self.file_path);
         let snippet_prov = get_snippet_provider(&path)?;
         let snippet = snippet_prov.get_snippet(self.position)?;
         Ok(snippet)
     }
 
     /// Change the configuration file to point to a snippet that is `count` forward.
+    /// Out-of-range positions are accepted silently, but peek/next will work fine.
     pub fn forward(&mut self, count: usize) -> Result<(), LazyCoderError> {
         self.position += count;
         self.save(false)
@@ -154,7 +160,7 @@ mod aux {
 
 #[cfg(test)]
 mod tests {
-    use std::{cell::Cell, str::FromStr};
+    use std::{cell::Cell, path::PathBuf, str::FromStr};
 
     use mockall::predicate;
 
@@ -249,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn save_creates_dir_if_doesnt_exist_and_rnquested() {
+    fn save_creates_dir_if_doesnt_exist_and_requested() {
         let path_buf = PathBuf::from("/some/config/path");
         CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
         PATH_EXISTS_ANSWER.set(false);
@@ -280,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn save_stores_configuration_in_stanard_file() {
+    fn save_stores_configuration_in_standard_file() {
         let mut path_buf = PathBuf::from("/some/config/path");
         CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
         PATH_EXISTS_ANSWER.set(true);
@@ -338,7 +344,7 @@ mod tests {
     #[test]
     fn next_snippet_fails_if_snippet_provider_fails() {
         let path_buf = PathBuf::from("/some/config/path");
-        CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
+        CONFIG_DIR_ANSWER.set(Some(path_buf));
         PATH_EXISTS_ANSWER.set(true);
         let mut snippet_prov = MockSnippetProvider::new();
         snippet_prov
@@ -399,7 +405,7 @@ mod tests {
             .once()
             .returning(|_| Ok(String::from("Some snippet")));
         SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
-        let mut sut = Config {
+        let sut = Config {
             file_path: String::from("/some/config/path"),
             position: 3,
         };
@@ -424,7 +430,7 @@ mod tests {
             .once()
             .returning(|_| Err(LazyCoderError::RunOutOfSnippets));
         SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
-        let mut sut = Config {
+        let sut = Config {
             file_path: String::from("/some/config/path"),
             position: 3,
         };
