@@ -38,21 +38,23 @@ pub enum Command {
     },
     /// Provide next snippet
     #[command(visible_alias = "n")]
-    Next {},
+    Next,
     /// Provide next snippet without moving forward
     #[command(visible_alias = "p")]
-    Peek {},
+    Peek,
     /// Rewind *n* snippet(s)
     #[command(visible_alias = "r")]
     Rewind {
         /// Set n (by default is 1)
-        count: Option<usize>,
+        #[arg(default_value_t = 1)]
+        count: usize,
     },
     /// Forward *n* snippet(s)
     #[command(visible_alias = "f")]
     Forward {
         /// Set n (by default is 1)
-        count: Option<usize>,
+        #[arg(default_value_t = 1)]
+        count: usize,
     },
 }
 

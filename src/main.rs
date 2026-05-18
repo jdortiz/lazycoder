@@ -1,4 +1,4 @@
-//! Lazycoder - A simple snippet generator for expanso
+//! Lazycoder - A simple snippet generator for espanso
 //!
 //! `lazycoder start </filepath/demo.lazycoder>`
 //! - works with only one demo at a time
@@ -28,15 +28,17 @@ mod config;
 mod lazy_coder_error;
 mod snippet_handler;
 
-use clap::Parser;
-use eyre::{Result, WrapErr, eyre};
-use log::{debug, error, info};
-use mockall_double::double;
 use std::path::Path;
 
-use cli_args::{CliArgs, Command};
-#[double]
+use clap::Parser;
+#[cfg_attr(test, double)]
 use config::Config;
+use eyre::{Result, WrapErr, eyre};
+use log::{debug, error, info};
+#[cfg(test)]
+use mockall_double::double;
+
+use crate::cli_args::{CliArgs, Command};
 
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
@@ -51,11 +53,9 @@ fn main() -> Result<()> {
         Command::Next {} => next()?,
         Command::Peek {} => peek()?,
         Command::Forward { count } => {
-            let count = count.unwrap_or(1);
             forward(count)?;
         }
         Command::Rewind { count } => {
-            let count = count.unwrap_or(1);
             rewind(count)?;
         }
     }
