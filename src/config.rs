@@ -255,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn save_creates_dir_if_doesnt_exist_and_rnquested() {
+    fn save_creates_dir_if_doesnt_exist_and_requested() {
         let path_buf = PathBuf::from("/some/config/path");
         CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
         PATH_EXISTS_ANSWER.set(false);
@@ -286,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn save_stores_configuration_in_stanard_file() {
+    fn save_stores_configuration_in_standard_file() {
         let mut path_buf = PathBuf::from("/some/config/path");
         CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
         PATH_EXISTS_ANSWER.set(true);
@@ -344,7 +344,7 @@ mod tests {
     #[test]
     fn next_snippet_fails_if_snippet_provider_fails() {
         let path_buf = PathBuf::from("/some/config/path");
-        CONFIG_DIR_ANSWER.set(Some(path_buf.clone()));
+        CONFIG_DIR_ANSWER.set(Some(path_buf));
         PATH_EXISTS_ANSWER.set(true);
         let mut snippet_prov = MockSnippetProvider::new();
         snippet_prov

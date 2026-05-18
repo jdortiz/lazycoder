@@ -117,7 +117,7 @@ mod tests {
             result.is_err(),
             "Expected error when file not found, but obtained {result:?}"
         );
-        // assert!(matches!(result, Err(LazyCoderError::SnippetFileError(_))));
+
         let Err(LazyCoderError::SnippetFileError(err)) = result else {
             panic!("Unexpected error type: {result:?}");
         };
@@ -145,6 +145,28 @@ mod tests {
         );
         if let Ok(snippet) = result {
             assert_eq!(snippet, "First snippet\n");
+        }
+    }
+
+    #[test]
+    fn empty_snippet_is_returned_from_emptly_file() {
+        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
+        let path = temp_file.path();
+        let mut sut = SnippetHandler::new(path).unwrap();
+        let mut mock_reader = MockWholeFileReader::new();
+        mock_reader
+            .expect_read_to_string()
+            .returning(|| Ok(String::new()));
+
+        sut.set_reader(mock_reader);
+
+        let result = sut.get_snippet(0);
+        assert!(
+            result.is_ok(),
+            "Unexpected error when getting snippet: {result:?}"
+        );
+        if let Ok(snippet) = result {
+            assert_eq!(snippet, "");
         }
     }
 
