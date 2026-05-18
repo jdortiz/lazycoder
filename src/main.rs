@@ -51,11 +51,9 @@ fn main() -> Result<()> {
         Command::Next {} => next()?,
         Command::Peek {} => peek()?,
         Command::Forward { count } => {
-            let count = count.unwrap_or(1);
             forward(count)?;
         }
         Command::Rewind { count } => {
-            let count = count.unwrap_or(1);
             rewind(count)?;
         }
     }
