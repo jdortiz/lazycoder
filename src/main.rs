@@ -25,7 +25,9 @@
 //!
 mod cli_args;
 mod config;
+mod document_parser;
 mod lazy_coder_error;
+mod outline;
 mod snippet_handler;
 
 use std::path::Path;
