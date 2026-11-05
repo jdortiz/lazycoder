@@ -135,7 +135,7 @@ mod aux {
     use crate::{
         file_system::{DiskFileSystem, FileSystem},
         lazy_coder_error::LazyCoderError,
-        snippet_handler::{SnippetHandler, SnippetProvider},
+        snippet_handler::{SnippetProvider, snippet_provider},
     };
 
     pub(crate) fn config_dir() -> Option<PathBuf> {
@@ -151,10 +151,7 @@ mod aux {
     }
 
     pub fn get_snippet_provider(path: &Path) -> Result<Box<dyn SnippetProvider>, LazyCoderError> {
-        Ok(Box::new(SnippetHandler::new(
-            path,
-            Box::new(DiskFileSystem),
-        )?))
+        snippet_provider(path, Box::new(DiskFileSystem))
     }
 }
 
