@@ -20,6 +20,15 @@ pub struct Section {
 }
 
 impl Section {
+    pub fn new(level: u8, title: &str, number: &[usize], first_snippet: usize) -> Self {
+        Section {
+            level,
+            title: title.to_string(),
+            number: number.to_vec(),
+            first_snippet,
+        }
+    }
+
     /// Dotted representation of the outline number, e.g. "2.1".
     pub fn number_string(&self) -> String {
         self.number
@@ -41,43 +50,38 @@ pub struct SnippetLocation {
     pub indent: usize,
 }
 
+impl SnippetLocation {
+    pub fn new(start_line: usize, end_line: usize, indent: usize) -> Self {
+        SnippetLocation {
+            start_line,
+            end_line,
+            indent,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn section(number: Vec<usize>) -> Section {
-        Section {
-            level: u8::try_from(number.len()).unwrap(),
-            title: String::from("Title"),
-            number,
-            first_snippet: 0,
-        }
-    }
-
     #[test]
     fn number_string_of_top_level_section() {
-        assert_eq!(section(vec![2]).number_string(), "2");
+        assert_eq!(Section::new(1, "Title", &[2], 0).number_string(), "2");
     }
 
     #[test]
     fn number_string_of_nested_section() {
-        assert_eq!(section(vec![2, 1, 3]).number_string(), "2.1.3");
+        assert_eq!(
+            Section::new(3, "Title", &[2, 1, 3], 0).number_string(),
+            "2.1.3"
+        );
     }
 
     #[test]
     fn outline_survives_toml_round_trip() {
         let outline = Outline {
-            sections: vec![Section {
-                level: 1,
-                title: String::from("Intro"),
-                number: vec![1],
-                first_snippet: 0,
-            }],
-            snippets: vec![SnippetLocation {
-                start_line: 3,
-                end_line: 5,
-                indent: 2,
-            }],
+            sections: vec![Section::new(1, "Intro", &[1], 0)],
+            snippets: vec![SnippetLocation::new(3, 5, 2)],
         };
 
         let text = toml::to_string(&outline).expect("Failed to encode outline");

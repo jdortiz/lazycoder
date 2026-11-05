@@ -27,6 +27,7 @@ mod cli_args;
 mod config;
 mod document_parser;
 mod lazy_coder_error;
+mod org_parser;
 mod outline;
 mod snippet_handler;
 
