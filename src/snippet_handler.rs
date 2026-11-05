@@ -14,6 +14,8 @@ use crate::{
 
 #[cfg_attr(test, automock)]
 pub trait SnippetProvider {
+    /// Checks the snippet document and prepares any data cached for it (e.g. the index file).
+    fn prepare(&self) -> Result<(), LazyCoderError>;
     /// Snippet at the given position (0-based), in document order. Fails with `RunOutOfSnippets` if there is no snippet
     /// at that position.
     fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError>;
@@ -54,6 +56,10 @@ impl SnippetHandler {
 }
 
 impl SnippetProvider for SnippetHandler {
+    fn prepare(&self) -> Result<(), LazyCoderError> {
+        Ok(())
+    }
+
     fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError> {
         match self.fs.read_to_string(&self.path) {
             Ok(string) => match string.split("\n---\n\n").nth(position) {
@@ -100,6 +106,10 @@ impl OutlineSnippetHandler {
 }
 
 impl SnippetProvider for OutlineSnippetHandler {
+    fn prepare(&self) -> Result<(), LazyCoderError> {
+        self.load().map(|_| ())
+    }
+
     fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError> {
         let (text, outline) = self.load()?;
         let location = outline
@@ -127,6 +137,16 @@ mod tests {
 
     const PATH: &str = "/some/demo.lazycoder";
     const THREE_SNIPPETS: &str = "First snippet\n\n---\n\nSecond snippet\n\n---\n\nThird snippet\n";
+    #[test]
+    fn plain_file_preparation_does_not_read_it() {
+        let mut fs = MockFileSystem::new();
+        fs.expect_is_file().return_const(true);
+        fs.expect_read_to_string().never();
+        let sut = SnippetHandler::new(PATH, Box::new(fs)).unwrap();
+
+        assert!(matches!(sut.prepare(), Ok(())));
+    }
+
     const ORG_PATH: &str = "/some/demo.org";
     const ORG_TEXT: &str =
         "* Intro\n#+begin_src\nhello\n#+end_src\n* Next\n#+begin_example\nbye\n#+end_example\n";
@@ -332,6 +352,39 @@ mod tests {
         );
 
         assert_eq!(sut.get_snippet(0).expect("Unexpected error"), "line 2\n");
+    }
+
+    #[test]
+    fn outline_handler_preparation_writes_index() {
+        let mut fs = MockFileSystem::new();
+        fs.expect_is_file().return_const(true);
+        fs.expect_read_to_string()
+            .withf(|path| path == Path::new(ORG_PATH))
+            .returning(|_| Ok(String::from(ORG_TEXT)));
+        fs.expect_read_to_string()
+            .returning(|_| Err(Error::from(ErrorKind::NotFound)));
+        fs.expect_write()
+            .withf(|path, _| path == index_path(Path::new(ORG_PATH)))
+            .once()
+            .returning(|_, _| Ok(()));
+        let sut = outline_handler(Box::new(fs), parser_returning(outline()));
+
+        assert!(matches!(sut.prepare(), Ok(())));
+    }
+
+    #[test]
+    fn outline_handler_preparation_reports_malformed_document() {
+        let mut parser = MockDocumentParser::new();
+        parser
+            .expect_parse()
+            .returning(|_| Err(LazyCoderError::MalformedDocument { line: 2 }));
+        let sut = outline_handler(org_file_system(None), parser);
+
+        let result = sut.prepare();
+        assert!(
+            matches!(result, Err(LazyCoderError::MalformedDocument { line: 2 })),
+            "Unexpected result: {result:?}"
+        );
     }
 
     #[test]

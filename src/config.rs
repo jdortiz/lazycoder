@@ -29,10 +29,14 @@ impl Config {
     /// # Arguments
     ///
     /// * `path` - path to the file with the snippets that will be stored in the configuration.
+    ///
+    /// The snippet document is checked (and its index file created or updated, if its format uses one) before the
+    /// configuration is saved, so an invalid document doesn't replace the current configuration.
     pub fn new(path: &Path) -> Result<Self, LazyCoderError> {
         let fs = file_system();
         if let Ok(absolute_path) = fs.canonicalize(path) {
             debug!("{} does exist", absolute_path.display());
+            get_snippet_provider(&absolute_path)?.prepare()?;
             let new_config = Config {
                 file_path: absolute_path
                     .to_str()
@@ -205,6 +209,9 @@ mod tests {
     #[test]
     fn config_new_from_existing_path_is_created() {
         CONFIG_DIR_ANSWER.set(Some(PathBuf::from("/some/config/path")));
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov.expect_prepare().once().returning(|| Ok(()));
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
         let mut fs = file_system_expecting_config("file_path = \"/tmp\"\nposition = 0\n");
         fs.expect_canonicalize()
             .withf(|path| path == Path::new("/tmp"))
@@ -216,6 +223,28 @@ mod tests {
         assert!(
             matches!(sut, Ok(ref cfg) if cfg.file_path == "/tmp" && cfg.position == 0),
             "Wrong config: {sut:?}"
+        );
+    }
+
+    #[test]
+    fn config_new_with_malformed_document_fails_without_saving() {
+        CONFIG_DIR_ANSWER.set(Some(PathBuf::from("/some/config/path")));
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov
+            .expect_prepare()
+            .returning(|| Err(LazyCoderError::MalformedDocument { line: 7 }));
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
+        let mut fs = MockFileSystem::new();
+        fs.expect_canonicalize()
+            .returning(|_| Ok(PathBuf::from("/talks/demo.org")));
+        fs.expect_write().never();
+        FILE_SYSTEM_ANSWER.set(Some(Box::new(fs)));
+
+        let sut = Config::new(Path::new("demo.org"));
+
+        assert!(
+            matches!(sut, Err(LazyCoderError::MalformedDocument { line: 7 })),
+            "Unexpected result: {sut:?}"
         );
     }
 
