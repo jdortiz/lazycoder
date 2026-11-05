@@ -1,27 +1,29 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 #[cfg(test)]
 use mockall::automock;
 
-use crate::lazy_coder_error::LazyCoderError;
+use crate::{file_system::FileSystem, lazy_coder_error::LazyCoderError};
 
 #[cfg_attr(test, automock)]
-trait WholeFileReader {
-    fn read_to_string(&self) -> std::io::Result<String>;
+pub trait SnippetProvider {
+    fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError>;
 }
 
-struct ReaderShell {
-    filename: PathBuf,
+pub struct SnippetHandler {
+    path: PathBuf,
+    fs: Box<dyn FileSystem>,
 }
 
-impl ReaderShell {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<ReaderShell, LazyCoderError> {
-        if path.as_ref().is_file() {
-            Ok(ReaderShell {
-                filename: path.as_ref().to_path_buf(),
+impl SnippetHandler {
+    pub fn new<P: AsRef<Path>>(
+        path: P,
+        fs: Box<dyn FileSystem>,
+    ) -> Result<SnippetHandler, LazyCoderError> {
+        if fs.is_file(path.as_ref()) {
+            Ok(SnippetHandler {
+                path: path.as_ref().to_path_buf(),
+                fs,
             })
         } else {
             Err(LazyCoderError::SnippetFileNotFound)
@@ -29,37 +31,9 @@ impl ReaderShell {
     }
 }
 
-impl WholeFileReader for ReaderShell {
-    fn read_to_string(&self) -> std::io::Result<String> {
-        fs::read_to_string(&self.filename)
-    }
-}
-
-#[cfg_attr(test, automock)]
-pub trait SnippetProvider {
-    fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError>;
-}
-
-pub struct SnippetHandler<'a> {
-    reader: Box<dyn WholeFileReader + 'a>,
-}
-
-impl<'a> SnippetHandler<'a> {
-    pub fn new<P: AsRef<Path>>(path: P) -> Result<SnippetHandler<'a>, LazyCoderError> {
-        Ok(SnippetHandler {
-            reader: Box::new(ReaderShell::new(path)?),
-        })
-    }
-
-    #[cfg(test)]
-    fn set_reader<R: WholeFileReader + 'a>(&mut self, reader: R) {
-        self.reader = Box::new(reader);
-    }
-}
-
-impl SnippetProvider for SnippetHandler<'_> {
+impl SnippetProvider for SnippetHandler {
     fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError> {
-        match self.reader.read_to_string() {
+        match self.fs.read_to_string(&self.path) {
             Ok(string) => match string.split("\n---\n\n").nth(position) {
                 Some(snippet) => Ok(snippet.to_owned()),
                 None => Err(LazyCoderError::RunOutOfSnippets),
@@ -71,46 +45,53 @@ impl SnippetProvider for SnippetHandler<'_> {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        io::{Error, ErrorKind},
-        path::PathBuf,
-    };
+    use std::io::{Error, ErrorKind};
 
-    use tempfile::NamedTempFile;
+    use crate::file_system::MockFileSystem;
 
     use super::*;
 
+    const PATH: &str = "/some/demo.lazycoder";
+    const THREE_SNIPPETS: &str = "First snippet\n\n---\n\nSecond snippet\n\n---\n\nThird snippet\n";
+
+    /// File system where the snippet file exists and has the given contents.
+    fn file_system_with(contents: &'static str) -> Box<MockFileSystem> {
+        let mut fs = MockFileSystem::new();
+        fs.expect_is_file().return_const(true);
+        fs.expect_read_to_string()
+            .withf(|path| path == Path::new(PATH))
+            .returning(move |_| Ok(String::from(contents)));
+        Box::new(fs)
+    }
+
     #[test]
     fn configuration_successful_with_existing_file() {
-        // Create temporary file
-        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-        let path = temp_file.path();
+        let mut fs = MockFileSystem::new();
+        fs.expect_is_file()
+            .withf(|path| path == Path::new(PATH))
+            .return_const(true);
 
-        assert!(SnippetHandler::new(path).is_ok());
+        assert!(SnippetHandler::new(PATH, Box::new(fs)).is_ok());
     }
 
     #[test]
     fn configuration_fails_with_non_existent_file() {
-        let path: PathBuf;
-        {
-            let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-            path = temp_file.path().to_path_buf();
-        } // temp file is deleted here.
+        let mut fs = MockFileSystem::new();
+        fs.expect_is_file().return_const(false);
 
-        assert!(SnippetHandler::new(&path).is_err());
+        assert!(matches!(
+            SnippetHandler::new(PATH, Box::new(fs)),
+            Err(LazyCoderError::SnippetFileNotFound)
+        ));
     }
 
     #[test]
     fn unavailable_snippet_file_causes_error() {
-        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-        let path = temp_file.path();
-        let mut sut = SnippetHandler::new(path).unwrap();
-        let mut mock_reader = MockWholeFileReader::new();
-        mock_reader
-            .expect_read_to_string()
-            .returning(|| Err(Error::new(ErrorKind::NotFound, "")));
-
-        sut.set_reader(mock_reader);
+        let mut fs = MockFileSystem::new();
+        fs.expect_is_file().return_const(true);
+        fs.expect_read_to_string()
+            .returning(|_| Err(Error::new(ErrorKind::NotFound, "")));
+        let sut = SnippetHandler::new(PATH, Box::new(fs)).unwrap();
 
         let result = sut.get_snippet(0);
         assert!(
@@ -126,17 +107,7 @@ mod tests {
 
     #[test]
     fn first_snippet_is_returned() {
-        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-        let path = temp_file.path();
-        let mut sut = SnippetHandler::new(path).unwrap();
-        let mut mock_reader = MockWholeFileReader::new();
-        mock_reader.expect_read_to_string().returning(|| {
-            Ok(String::from(
-                "First snippet\n\n---\n\nSecond snippet\n\n---\n\nThird snippet\n",
-            ))
-        });
-
-        sut.set_reader(mock_reader);
+        let sut = SnippetHandler::new(PATH, file_system_with(THREE_SNIPPETS)).unwrap();
 
         let result = sut.get_snippet(0);
         assert!(
@@ -150,15 +121,7 @@ mod tests {
 
     #[test]
     fn empty_snippet_is_returned_from_emptly_file() {
-        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-        let path = temp_file.path();
-        let mut sut = SnippetHandler::new(path).unwrap();
-        let mut mock_reader = MockWholeFileReader::new();
-        mock_reader
-            .expect_read_to_string()
-            .returning(|| Ok(String::new()));
-
-        sut.set_reader(mock_reader);
+        let sut = SnippetHandler::new(PATH, file_system_with("")).unwrap();
 
         let result = sut.get_snippet(0);
         assert!(
@@ -172,17 +135,7 @@ mod tests {
 
     #[test]
     fn middle_snippet_is_returned() {
-        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-        let path = temp_file.path();
-        let mut sut = SnippetHandler::new(path).unwrap();
-        let mut mock_reader = MockWholeFileReader::new();
-        mock_reader.expect_read_to_string().returning(|| {
-            Ok(String::from(
-                "First snippet\n\n---\n\nSecond snippet\n\n---\n\nThird snippet\n",
-            ))
-        });
-
-        sut.set_reader(mock_reader);
+        let sut = SnippetHandler::new(PATH, file_system_with(THREE_SNIPPETS)).unwrap();
 
         let result = sut.get_snippet(1);
         assert!(
@@ -196,17 +149,7 @@ mod tests {
 
     #[test]
     fn last_snippet_is_returned() {
-        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-        let path = temp_file.path();
-        let mut sut = SnippetHandler::new(path).unwrap();
-        let mut mock_reader = MockWholeFileReader::new();
-        mock_reader.expect_read_to_string().returning(|| {
-            Ok(String::from(
-                "First snippet\n\n---\n\nSecond snippet\n\n---\n\nThird snippet\n",
-            ))
-        });
-
-        sut.set_reader(mock_reader);
+        let sut = SnippetHandler::new(PATH, file_system_with(THREE_SNIPPETS)).unwrap();
 
         let result = sut.get_snippet(2);
         assert!(
@@ -220,17 +163,7 @@ mod tests {
 
     #[test]
     fn unexisting_snippet_returns_error() {
-        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-        let path = temp_file.path();
-        let mut sut = SnippetHandler::new(path).unwrap();
-        let mut mock_reader = MockWholeFileReader::new();
-        mock_reader.expect_read_to_string().returning(|| {
-            Ok(String::from(
-                "First snippet\n\n---\n\nSecond snippet\n\n---\n\nThird snippet\n",
-            ))
-        });
-
-        sut.set_reader(mock_reader);
+        let sut = SnippetHandler::new(PATH, file_system_with(THREE_SNIPPETS)).unwrap();
 
         let result = sut.get_snippet(4);
         assert!(
@@ -242,15 +175,7 @@ mod tests {
 
     #[test]
     fn first_snippet_is_empty_for_empty_file() {
-        let temp_file = NamedTempFile::new().expect("Unable to create temporary file");
-        let path = temp_file.path();
-        let mut sut = SnippetHandler::new(path).unwrap();
-        let mut mock_reader = MockWholeFileReader::new();
-        mock_reader
-            .expect_read_to_string()
-            .returning(|| Ok(String::new()));
-
-        sut.set_reader(mock_reader);
+        let sut = SnippetHandler::new(PATH, file_system_with("")).unwrap();
 
         let result = sut.get_snippet(0);
         assert!(

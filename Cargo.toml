@@ -18,7 +18,6 @@ toml = "~1.1"
 [dev-dependencies]
 mockall = "~0.14"
 mockall_double = "~0.3"
-tempfile = "~3.27"
 
 [lints.clippy]
 pedantic = "warn"

@@ -1,40 +1,20 @@
 //! Index file stored next to a structured snippet document, so it is only parsed again when its contents change.
 use std::{
     fmt::Write,
-    fs, io,
     path::{Path, PathBuf},
 };
 
 use log::{debug, info, warn};
-#[cfg(test)]
-use mockall::automock;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::{document_parser::DocumentParser, lazy_coder_error::LazyCoderError, outline::Outline};
+use crate::{
+    document_parser::DocumentParser, file_system::FileSystem, lazy_coder_error::LazyCoderError,
+    outline::Outline,
+};
 
 /// Appended to the name of the snippet document to obtain the name of its index file.
 static INDEX_SUFFIX: &str = ".lci";
-
-/// File operations required to maintain the index.
-#[cfg_attr(test, automock)]
-pub trait FileSystem {
-    fn read_to_string(&self, path: &Path) -> io::Result<String>;
-    fn write(&self, path: &Path, contents: &str) -> io::Result<()>;
-}
-
-/// Access to the actual file system of the computer.
-pub struct DiskFileSystem;
-
-impl FileSystem for DiskFileSystem {
-    fn read_to_string(&self, path: &Path) -> io::Result<String> {
-        fs::read_to_string(path)
-    }
-
-    fn write(&self, path: &Path, contents: &str) -> io::Result<()> {
-        fs::write(path, contents)
-    }
-}
 
 /// Contents of the index file.
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
@@ -109,7 +89,11 @@ fn read_index(fs: &dyn FileSystem, path: &Path, hash: &str) -> Option<Outline> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{document_parser::MockDocumentParser, outline::Section};
+    use std::io;
+
+    use crate::{
+        document_parser::MockDocumentParser, file_system::MockFileSystem, outline::Section,
+    };
 
     use super::*;
 
