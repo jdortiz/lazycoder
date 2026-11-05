@@ -1,5 +1,5 @@
 //! Format-agnostic structure of a snippet document: its sections (headings) and the location of its snippets.
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 /// Structure of a snippet document.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Default)]

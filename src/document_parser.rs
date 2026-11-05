@@ -1,12 +1,16 @@
 //! Abstraction over the supported snippet file formats.
 use std::path::Path;
 
+#[cfg(test)]
+use mockall::automock;
+
 use crate::{
     lazy_coder_error::LazyCoderError,
     outline::{Outline, SnippetLocation},
 };
 
 /// Parser for a structured document format (Org, Markdown, ...).
+#[cfg_attr(test, automock)]
 pub trait DocumentParser {
     /// Obtain the structure of the document.
     fn parse(&self, text: &str) -> Result<Outline, LazyCoderError>;

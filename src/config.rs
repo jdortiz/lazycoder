@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use log::{debug, error};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::lazy_coder_error::LazyCoderError;
 
