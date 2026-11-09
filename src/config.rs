@@ -4,7 +4,7 @@ use log::{debug, error};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    file_system::FileSystem, lazy_coder_error::LazyCoderError, navigation, outline::Section,
+    file_system::FileSystem, lazy_coder_error::LazyCoderError, navigation, outline::Outline,
 };
 
 #[cfg(not(test))]
@@ -91,6 +91,11 @@ impl Config {
         Ok(snippet)
     }
 
+    /// Position of the next snippet to be provided.
+    pub fn position(&self) -> usize {
+        self.position
+    }
+
     /// Change the configuration file to point to a snippet that is `count` forward.
     /// Out-of-range positions are accepted silently, but peek/next will work fine.
     pub fn forward(&mut self, count: usize) -> Result<(), LazyCoderError> {
@@ -110,27 +115,27 @@ impl Config {
 
     /// Change the configuration file to point to the first snippet of the section that is `count` forward.
     pub fn next_section(&mut self, count: usize) -> Result<(), LazyCoderError> {
-        let position = navigation::next_section(&self.sections()?, self.position, count)?;
+        let position = navigation::next_section(&self.outline()?.sections, self.position, count)?;
         self.move_to(position)
     }
 
     /// Change the configuration file to point to the first snippet of the section that is `count` backward. If the
     /// position is past the start of the current section, the first step goes back to that start.
     pub fn prev_section(&mut self, count: usize) -> Result<(), LazyCoderError> {
-        let position = navigation::prev_section(&self.sections()?, self.position, count)?;
+        let position = navigation::prev_section(&self.outline()?.sections, self.position, count)?;
         self.move_to(position)
     }
 
     /// Change the configuration file to point to the first snippet of the section with the given outline number,
     /// e.g. "2.1".
     pub fn goto(&mut self, section: &str) -> Result<(), LazyCoderError> {
-        let position = navigation::goto(&self.sections()?, section)?;
+        let position = navigation::goto(&self.outline()?.sections, section)?;
         self.move_to(position)
     }
 
-    /// Sections of the snippet file in the configuration.
-    fn sections(&self) -> Result<Vec<Section>, LazyCoderError> {
-        get_snippet_provider(Path::new(&self.file_path))?.sections()
+    /// Outline of the snippet file in the configuration, empty if its format has no sections.
+    pub fn outline(&self) -> Result<Outline, LazyCoderError> {
+        get_snippet_provider(Path::new(&self.file_path))?.outline()
     }
 
     /// Set the position and save the configuration.
@@ -200,6 +205,7 @@ mod tests {
 
     use crate::{
         file_system::MockFileSystem,
+        outline::{Section, SnippetLocation},
         snippet_handler::{MockSnippetProvider, SnippetProvider},
     };
 
@@ -559,7 +565,7 @@ mod tests {
         FILE_SYSTEM_ANSWER.set(Some(Box::new(file_system_expecting_config(
             "file_path = \"/some/config/path\"\nposition = 4\n",
         ))));
-        provider_with_sections();
+        provider_with_outline();
         let mut sut = Config {
             file_path: String::from("/some/config/path"),
             position: 1,
@@ -576,7 +582,7 @@ mod tests {
         FILE_SYSTEM_ANSWER.set(Some(Box::new(file_system_expecting_config(
             "file_path = \"/some/config/path\"\nposition = 0\n",
         ))));
-        provider_with_sections();
+        provider_with_outline();
         let mut sut = Config {
             file_path: String::from("/some/config/path"),
             position: 4,
@@ -593,7 +599,7 @@ mod tests {
         FILE_SYSTEM_ANSWER.set(Some(Box::new(file_system_expecting_config(
             "file_path = \"/some/config/path\"\nposition = 4\n",
         ))));
-        provider_with_sections();
+        provider_with_outline();
         let mut sut = Config {
             file_path: String::from("/some/config/path"),
             position: 0,
@@ -607,7 +613,7 @@ mod tests {
     #[test]
     fn goto_unexisting_section_fails_without_saving() {
         // No file system answer: any file access would fail the test.
-        provider_with_sections();
+        provider_with_outline();
         let mut sut = Config {
             file_path: String::from("/some/config/path"),
             position: 1,
@@ -627,7 +633,7 @@ mod tests {
         // No file system answer: any file access would fail the test.
         let mut snippet_prov = MockSnippetProvider::new();
         snippet_prov
-            .expect_sections()
+            .expect_outline()
             .once()
             .returning(|| Err(LazyCoderError::MalformedDocument { line: 2 }));
         SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
@@ -644,15 +650,50 @@ mod tests {
         );
     }
 
-    /// Snippet provider with two sections, starting at snippets 0 and 4.
-    fn provider_with_sections() {
-        let mut snippet_prov = MockSnippetProvider::new();
-        snippet_prov.expect_sections().once().returning(|| {
-            Ok(vec![
+    #[test]
+    fn position_is_returned() {
+        let sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        assert_eq!(sut.position(), 3);
+    }
+
+    #[test]
+    fn outline_is_obtained_from_snippet_provider() {
+        // No file system answer: any file access would fail the test.
+        provider_with_outline();
+        let sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 1,
+        };
+
+        let result = sut.outline();
+
+        assert_eq!(result.expect("Unexpected error"), outline());
+    }
+
+    /// Outline with two sections, starting at snippets 0 and 4, and 6 snippets.
+    fn outline() -> Outline {
+        Outline {
+            sections: vec![
                 Section::new(1, "Intro", &[1], 0),
                 Section::new(1, "Code", &[2], 4),
-            ])
-        });
+            ],
+            snippets: (0..6)
+                .map(|line| SnippetLocation::new(line, line + 1, 0))
+                .collect(),
+        }
+    }
+
+    /// Snippet provider that returns the outline once.
+    fn provider_with_outline() {
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov
+            .expect_outline()
+            .once()
+            .returning(|| Ok(outline()));
         SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
     }
 

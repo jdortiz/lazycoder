@@ -8,7 +8,7 @@ use crate::{
     file_system::FileSystem,
     lazy_coder_error::LazyCoderError,
     org_parser::OrgParser,
-    outline::{Outline, Section},
+    outline::Outline,
     snippet_index::load_or_build,
 };
 
@@ -19,8 +19,8 @@ pub trait SnippetProvider {
     /// Snippet at the given position (0-based), in document order. Fails with `RunOutOfSnippets` if there is no snippet
     /// at that position.
     fn get_snippet(&self, position: usize) -> Result<String, LazyCoderError>;
-    /// Sections of the snippet document, empty if the format has none.
-    fn sections(&self) -> Result<Vec<Section>, LazyCoderError>;
+    /// Outline of the snippet document: its sections and snippets. Empty if the format has no sections.
+    fn outline(&self) -> Result<Outline, LazyCoderError>;
 }
 
 /// Provider for the snippet file, chosen by its format.
@@ -70,8 +70,8 @@ impl SnippetProvider for SnippetHandler {
         }
     }
 
-    fn sections(&self) -> Result<Vec<Section>, LazyCoderError> {
-        Ok(vec![])
+    fn outline(&self) -> Result<Outline, LazyCoderError> {
+        Ok(Outline::default())
     }
 }
 
@@ -119,8 +119,8 @@ impl SnippetProvider for OutlineSnippetHandler {
         Ok(self.parser.extract(&text, location))
     }
 
-    fn sections(&self) -> Result<Vec<Section>, LazyCoderError> {
-        Ok(self.load()?.1.sections)
+    fn outline(&self) -> Result<Outline, LazyCoderError> {
+        Ok(self.load()?.1)
     }
 }
 
@@ -129,7 +129,9 @@ mod tests {
     use std::io::{Error, ErrorKind};
 
     use crate::{
-        document_parser::MockDocumentParser, file_system::MockFileSystem, outline::SnippetLocation,
+        document_parser::MockDocumentParser,
+        file_system::MockFileSystem,
+        outline::{Section, SnippetLocation},
         snippet_index::index_path,
     };
 
@@ -275,10 +277,10 @@ mod tests {
     }
 
     #[test]
-    fn plain_file_has_no_sections() {
+    fn plain_file_has_empty_outline() {
         let sut = SnippetHandler::new(PATH, file_system_with(THREE_SNIPPETS)).unwrap();
 
-        assert_eq!(sut.sections().expect("Unexpected error"), vec![]);
+        assert_eq!(sut.outline().expect("Unexpected error"), Outline::default());
     }
 
     #[test]
@@ -318,13 +320,10 @@ mod tests {
     }
 
     #[test]
-    fn outline_handler_returns_sections() {
+    fn outline_handler_returns_outline() {
         let sut = outline_handler(org_file_system(None), parser_returning(outline()));
 
-        assert_eq!(
-            sut.sections().expect("Unexpected error"),
-            outline().sections
-        );
+        assert_eq!(sut.outline().expect("Unexpected error"), outline());
     }
 
     #[test]
@@ -392,7 +391,9 @@ mod tests {
         let sut = snippet_provider(ORG_PATH, org_file_system(None)).expect("Unexpected error");
 
         assert_eq!(sut.get_snippet(1).expect("Unexpected error"), "bye\n");
-        assert_eq!(sut.sections().expect("Unexpected error").len(), 2);
+        let outline = sut.outline().expect("Unexpected error");
+        assert_eq!(outline.sections.len(), 2);
+        assert_eq!(outline.snippets.len(), 2);
     }
 
     #[test]
@@ -404,7 +405,7 @@ mod tests {
             sut.get_snippet(1).expect("Unexpected error"),
             "Second snippet\n"
         );
-        assert_eq!(sut.sections().expect("Unexpected error"), vec![]);
+        assert_eq!(sut.outline().expect("Unexpected error"), Outline::default());
     }
 
     /// Outline with two sections, each with one snippet.

@@ -6,8 +6,10 @@
 //! Subcommands:
 //! - start: Initialize configuration, setting next position to 0
 //! - next: Prints the next snippet to stdout and increments counter
+//! - peek: Prints the next snippet to stdout without incrementing counter
 //! - rewind: Decrements counter
 //! - forward: Increments counter
+//! - list-sections: Prints the sections with their numbers
 //! - next-section: Moves to the first snippet of a following section
 //! - prev-section: Moves to the first snippet of the current or a preceding section
 //! - goto: Moves to the first snippet of a section given by its number
@@ -59,6 +61,9 @@ pub enum Command {
         #[arg(default_value_t = 1)]
         count: usize,
     },
+    /// List the sections with their numbers
+    #[command(visible_alias = "l")]
+    ListSections,
     /// Move to the first snippet of the *n*-th next section
     #[command(visible_alias = "ns")]
     NextSection {
@@ -83,6 +88,8 @@ pub enum Command {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
 
     const BINARY: &str = "lazycoder";
@@ -92,6 +99,96 @@ mod tests {
         use clap::CommandFactory;
 
         CliArgs::command().debug_assert();
+    }
+
+    #[test]
+    fn missing_subcommand_fails() {
+        assert!(try_parse(&[]).is_err());
+    }
+
+    #[test]
+    fn start_produces_command_with_filename() {
+        assert!(matches!(
+            parse(&["start", "/talks/demo.org"]),
+            Command::Start { filename } if filename == Path::new("/talks/demo.org")
+        ));
+    }
+
+    #[test]
+    fn start_alias_produces_command_with_filename() {
+        assert!(matches!(
+            parse(&["s", "demo.lazycoder"]),
+            Command::Start { filename } if filename == Path::new("demo.lazycoder")
+        ));
+    }
+
+    #[test]
+    fn start_requires_filename() {
+        assert!(try_parse(&["start"]).is_err());
+    }
+
+    #[test]
+    fn next() {
+        assert!(matches!(parse(&["next"]), Command::Next));
+    }
+
+    #[test]
+    fn next_alias() {
+        assert!(matches!(parse(&["n"]), Command::Next));
+    }
+
+    #[test]
+    fn peek() {
+        assert!(matches!(parse(&["peek"]), Command::Peek));
+    }
+
+    #[test]
+    fn peek_alias() {
+        assert!(matches!(parse(&["p"]), Command::Peek));
+    }
+
+    #[test]
+    fn rewind_produces_command_with_count() {
+        assert!(matches!(
+            parse(&["rewind", "3"]),
+            Command::Rewind { count: 3 }
+        ));
+    }
+
+    #[test]
+    fn rewind_alias_defaults_to_one() {
+        assert!(matches!(parse(&["r"]), Command::Rewind { count: 1 }));
+    }
+
+    #[test]
+    fn forward_produces_command_with_count() {
+        assert!(matches!(
+            parse(&["forward", "4"]),
+            Command::Forward { count: 4 }
+        ));
+    }
+
+    #[test]
+    fn forward_alias_defaults_to_one() {
+        assert!(matches!(parse(&["f"]), Command::Forward { count: 1 }));
+    }
+
+    #[test]
+    fn snippet_count_must_be_usize_convertible() {
+        assert!(try_parse(&["rewind", "two"]).is_err());
+        assert!(try_parse(&["rewind", "-1"]).is_err());
+        assert!(try_parse(&["forward", "0.3"]).is_err());
+        assert!(try_parse(&["forward", "four"]).is_err());
+    }
+
+    #[test]
+    fn list_sections() {
+        assert!(matches!(parse(&["list-sections"]), Command::ListSections));
+    }
+
+    #[test]
+    fn list_sections_alias() {
+        assert!(matches!(parse(&["l"]), Command::ListSections));
     }
 
     #[test]
