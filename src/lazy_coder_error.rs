@@ -9,6 +9,10 @@ pub enum LazyCoderError {
     ConfigFileError(io::Error),
     ConfigEncoding(toml::de::Error),
     OperationOutOfRange,
+    MalformedDocument { line: usize },
+    IndexFileError(io::Error),
+    SectionNotFound,
+    NoSections,
 }
 
 impl error::Error for LazyCoderError {}
@@ -36,6 +40,18 @@ impl fmt::Display for LazyCoderError {
             }
             LazyCoderError::OperationOutOfRange => {
                 write!(f, "operation out of range")
+            }
+            LazyCoderError::MalformedDocument { line } => {
+                write!(f, "malformed snippet document at line {line}")
+            }
+            LazyCoderError::IndexFileError(err) => {
+                write!(f, "index file error: {err}")
+            }
+            LazyCoderError::SectionNotFound => {
+                write!(f, "section not found")
+            }
+            LazyCoderError::NoSections => {
+                write!(f, "snippet file has no sections")
             }
         }
     }
@@ -114,6 +130,39 @@ mod tests {
         assert_eq!(
             LazyCoderError::OperationOutOfRange.to_string(),
             "operation out of range"
+        );
+    }
+
+    #[test]
+    fn display_malformed_document_error() {
+        assert_eq!(
+            LazyCoderError::MalformedDocument { line: 7 }.to_string(),
+            "malformed snippet document at line 7"
+        );
+    }
+
+    #[test]
+    fn display_index_file_error() {
+        assert_eq!(
+            LazyCoderError::IndexFileError(std::io::Error::other("some file error".to_string()))
+                .to_string(),
+            "index file error: some file error"
+        );
+    }
+
+    #[test]
+    fn display_section_not_found_error() {
+        assert_eq!(
+            LazyCoderError::SectionNotFound.to_string(),
+            "section not found"
+        );
+    }
+
+    #[test]
+    fn display_no_sections_error() {
+        assert_eq!(
+            LazyCoderError::NoSections.to_string(),
+            "snippet file has no sections"
         );
     }
 
