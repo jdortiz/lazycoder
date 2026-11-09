@@ -4,6 +4,8 @@ name = "lazycoder"
 description = "Simple snippet provider for espanso."
 version = "0.8.1"
 edition = "2024"
+# Required by let chains and by sha2.
+rust-version = "1.88"
 
 [dependencies]
 clap = { version = "~4.6", features = ["derive"] }
@@ -13,11 +15,13 @@ eyre = "~0.6"
 log = "~0.4"
 serde = { version = "^1.0", features = ["derive"] }
 sha2 = "~0.11"
+thiserror = "~2.0"
 toml = "~1.2"
 
 [dev-dependencies]
 mockall = "~0.15"
 mockall_double = "~0.3"
+tempfile = "~3.27"
 
 [lints.clippy]
 pedantic = "warn"

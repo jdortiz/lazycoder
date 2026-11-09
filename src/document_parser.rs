@@ -25,6 +25,8 @@ pub enum SnippetFormat {
     Plain,
     /// Org mode document with source and example blocks.
     Org,
+    /// Markdown document with fenced code blocks.
+    Markdown,
 }
 
 impl SnippetFormat {
@@ -32,9 +34,40 @@ impl SnippetFormat {
     pub fn from_path(path: &Path) -> Self {
         match path.extension() {
             Some(ext) if ext.eq_ignore_ascii_case("org") => SnippetFormat::Org,
+            Some(ext) if ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown") => {
+                SnippetFormat::Markdown
+            }
             _ => SnippetFormat::Plain,
         }
     }
+}
+
+/// Number of leading whitespace characters.
+pub(crate) fn indentation(line: &str) -> usize {
+    line.chars().take_while(|c| c.is_whitespace()).count()
+}
+
+/// Lines of the snippet at the given location, without the indentation of its block.
+pub(crate) fn block_lines<'a>(
+    text: &'a str,
+    location: &SnippetLocation,
+) -> impl Iterator<Item = &'a str> {
+    text.lines()
+        .skip(location.start_line)
+        .take(location.end_line.saturating_sub(location.start_line))
+        .map(|line| dedent(line, location.indent))
+}
+
+/// Line without up to `indent` leading whitespace characters.
+fn dedent(line: &str, indent: usize) -> &str {
+    let mut rest = line;
+    for _ in 0..indent {
+        match rest.strip_prefix(char::is_whitespace) {
+            Some(stripped) => rest = stripped,
+            None => break,
+        }
+    }
+    rest
 }
 
 #[cfg(test)]
@@ -54,6 +87,30 @@ mod tests {
         assert_eq!(
             SnippetFormat::from_path(Path::new("/some/demo.ORG")),
             SnippetFormat::Org
+        );
+    }
+
+    #[test]
+    fn md_extension_is_markdown_format() {
+        assert_eq!(
+            SnippetFormat::from_path(Path::new("/some/demo.md")),
+            SnippetFormat::Markdown
+        );
+    }
+
+    #[test]
+    fn markdown_extension_is_markdown_format() {
+        assert_eq!(
+            SnippetFormat::from_path(Path::new("/some/demo.markdown")),
+            SnippetFormat::Markdown
+        );
+    }
+
+    #[test]
+    fn markdown_extension_is_case_insensitive() {
+        assert_eq!(
+            SnippetFormat::from_path(Path::new("/some/demo.MD")),
+            SnippetFormat::Markdown
         );
     }
 

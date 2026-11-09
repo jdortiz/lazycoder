@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     file_system::FileSystem, lazy_coder_error::LazyCoderError, navigation, outline::Outline,
+    snippet_handler::SnippetProvider,
 };
 
 #[cfg(not(test))]
@@ -36,59 +37,51 @@ impl Config {
     /// configuration is saved, so an invalid document doesn't replace the current configuration.
     pub fn new(path: &Path) -> Result<Self, LazyCoderError> {
         let fs = file_system();
-        if let Ok(absolute_path) = fs.canonicalize(path) {
-            debug!("{} does exist", absolute_path.display());
-            get_snippet_provider(&absolute_path)?.prepare()?;
-            let new_config = Config {
-                file_path: absolute_path
-                    .to_str()
-                    .ok_or(LazyCoderError::ConfigDirError)?
-                    .to_string(),
-                position: 0,
-            };
-            new_config.save(fs.as_ref(), true)?;
-            Ok(new_config)
-        } else {
+        let Ok(absolute_path) = fs.canonicalize(path) else {
             error!("{} doesn't exist", path.display());
-            Err(LazyCoderError::SnippetFileNotFound)
-        }
+            return Err(LazyCoderError::SnippetFileNotFound);
+        };
+        debug!("{} does exist", absolute_path.display());
+        get_snippet_provider(&absolute_path)?.prepare()?;
+        let new_config = Config {
+            file_path: absolute_path
+                .to_str()
+                .ok_or(LazyCoderError::SnippetPathNotUtf8)?
+                .to_string(),
+            position: 0,
+        };
+        new_config.save(fs.as_ref(), true)?;
+        Ok(new_config)
     }
 
     /// Creates a configuration from the file if it exists.
     ///
     /// Configuration is stored in a file following the standards for each operating system.
     pub fn from_file() -> Result<Self, LazyCoderError> {
-        if let Some(mut config_file) = config_dir() {
-            config_file.push(FILE_NAME);
-            debug!(
-                "Reading configuration from file {}",
-                config_file.as_path().display()
-            );
-            let toml_text = file_system().read_to_string(&config_file)?;
-            let cfg: Config = toml::from_str(&toml_text)?;
-            // TODO: Check that the file_path is stil valid?
-            Ok(cfg)
-        } else {
-            Err(LazyCoderError::ConfigDirError)
-        }
+        let mut config_file = config_dir().ok_or(LazyCoderError::ConfigDirError)?;
+        config_file.push(FILE_NAME);
+        debug!(
+            "Reading configuration from file {}",
+            config_file.as_path().display()
+        );
+        let toml_text = file_system()
+            .read_to_string(&config_file)
+            .map_err(LazyCoderError::ConfigFileError)?;
+        let cfg: Config = toml::from_str(&toml_text)?;
+        // TODO: Check that the file_path is stil valid?
+        Ok(cfg)
     }
 
     /// Read snippet from the file in the configuration, increment position, and update config file.
     pub fn next(&mut self) -> Result<String, LazyCoderError> {
-        let path = Path::new(&self.file_path);
-        let snippet_prov = get_snippet_provider(path)?;
-        let snippet = snippet_prov.get_snippet(self.position)?;
-        self.position += 1;
-        self.save(file_system().as_ref(), false)?;
+        let snippet = self.peek()?;
+        self.move_to(self.position + 1)?;
         Ok(snippet)
     }
 
     /// Read snippet from the file in the configuration without updating the config file.
     pub fn peek(&self) -> Result<String, LazyCoderError> {
-        let path = Path::new(&self.file_path);
-        let snippet_prov = get_snippet_provider(path)?;
-        let snippet = snippet_prov.get_snippet(self.position)?;
-        Ok(snippet)
+        self.provider()?.get_snippet(self.position)
     }
 
     /// Position of the next snippet to be provided.
@@ -99,15 +92,13 @@ impl Config {
     /// Change the configuration file to point to a snippet that is `count` forward.
     /// Out-of-range positions are accepted silently, but peek/next will work fine.
     pub fn forward(&mut self, count: usize) -> Result<(), LazyCoderError> {
-        self.position += count;
-        self.save(file_system().as_ref(), false)
+        self.move_to(self.position + count)
     }
 
     /// Change the configuration file to point to a snippet that is `count` backward.
     pub fn rewind(&mut self, count: usize) -> Result<(), LazyCoderError> {
         if count <= self.position {
-            self.position -= count;
-            self.save(file_system().as_ref(), false)
+            self.move_to(self.position - count)
         } else {
             Err(LazyCoderError::OperationOutOfRange)
         }
@@ -135,7 +126,12 @@ impl Config {
 
     /// Outline of the snippet file in the configuration, empty if its format has no sections.
     pub fn outline(&self) -> Result<Outline, LazyCoderError> {
-        get_snippet_provider(Path::new(&self.file_path))?.outline()
+        self.provider()?.outline()
+    }
+
+    /// Provider for the snippet file in the configuration.
+    fn provider(&self) -> Result<Box<dyn SnippetProvider>, LazyCoderError> {
+        get_snippet_provider(Path::new(&self.file_path))
     }
 
     /// Set the position and save the configuration.
@@ -147,24 +143,23 @@ impl Config {
     /// Saves this configuration to the standard path and file.
     fn save(&self, fs: &dyn FileSystem, create_dir: bool) -> Result<(), LazyCoderError> {
         let toml_text = toml::to_string(&self).expect("Failing to encode TOML");
-        if let Some(mut config_path) = config_dir() {
-            if !fs.exists(&config_path) {
-                if create_dir {
-                    fs.create_dir_all(&config_path)?;
-                } else {
-                    return Err(LazyCoderError::ConfigDirError);
-                }
+        let mut config_path = config_dir().ok_or(LazyCoderError::ConfigDirError)?;
+        if !fs.exists(&config_path) {
+            if create_dir {
+                fs.create_dir_all(&config_path)
+                    .map_err(LazyCoderError::ConfigFileError)?;
+            } else {
+                return Err(LazyCoderError::ConfigDirError);
             }
-            config_path.push(FILE_NAME);
-            debug!(
-                "Writing configuration to file {}",
-                config_path.as_path().display()
-            );
-            fs.write(&config_path, &toml_text)?;
-            Ok(())
-        } else {
-            Err(LazyCoderError::ConfigDirError)
         }
+        config_path.push(FILE_NAME);
+        debug!(
+            "Writing configuration to file {}",
+            config_path.as_path().display()
+        );
+        fs.write(&config_path, &toml_text)
+            .map_err(LazyCoderError::ConfigFileError)?;
+        Ok(())
     }
 }
 
@@ -243,6 +238,25 @@ mod tests {
         let sut = Config::new(Path::new(""));
 
         assert!(matches!(sut, Err(LazyCoderError::SnippetFileNotFound)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn config_new_with_non_utf8_path_fails() {
+        use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
+
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov.expect_prepare().returning(|| Ok(()));
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
+        let mut fs = MockFileSystem::new();
+        fs.expect_canonicalize()
+            .returning(|_| Ok(PathBuf::from(OsStr::from_bytes(b"/tmp/\xff"))));
+        fs.expect_write().never();
+        FILE_SYSTEM_ANSWER.set(Some(Box::new(fs)));
+
+        let sut = Config::new(Path::new("/tmp"));
+
+        assert!(matches!(sut, Err(LazyCoderError::SnippetPathNotUtf8)));
     }
 
     #[test]
