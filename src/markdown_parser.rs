@@ -1,6 +1,6 @@
 //! Minimal Markdown parser: ATX headings (levels 1–3) and fenced code blocks.
 use crate::{
-    document_parser::{DocumentParser, dedent, indentation},
+    document_parser::{DocumentParser, block_lines, indentation},
     lazy_coder_error::LazyCoderError,
     outline::{MAX_SECTION_LEVEL, Outline, SnippetLocation},
 };
@@ -62,10 +62,8 @@ impl DocumentParser for MarkdownParser {
     }
 
     fn extract(&self, text: &str, location: &SnippetLocation) -> String {
-        text.lines()
-            .skip(location.start_line)
-            .take(location.end_line.saturating_sub(location.start_line))
-            .map(|line| dedent(line, location.indent).to_string() + "\n")
+        block_lines(text, location)
+            .map(|line| line.to_string() + "\n")
             .collect()
     }
 }

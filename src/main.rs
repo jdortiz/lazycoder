@@ -4,7 +4,7 @@
 //! - works with only one demo at a time
 //! - save file name
 //! - save initial next position: 0
-//! - config file location depends on OS. saved in ~/.lazycoder
+//! - config file location depends on OS
 //!
 //! `lazycoder next`
 //! - reads from config file
@@ -55,7 +55,7 @@ use std::{fmt::Write, path::Path};
 use clap::Parser;
 #[cfg_attr(test, double)]
 use config::Config;
-use eyre::{Result, WrapErr, eyre};
+use eyre::{Result, WrapErr};
 use log::{debug, error, info};
 #[cfg(test)]
 use mockall_double::double;
@@ -74,18 +74,18 @@ fn main() -> Result<()> {
         env_logger::init();
     }
 
-    match cli.command {
-        Command::Start { filename } => start(&filename)?,
-        Command::Next => next()?,
-        Command::Peek => peek()?,
-        Command::Forward { count } => forward(count)?,
-        Command::Rewind { count } => rewind(count)?,
-        Command::ListSections => list_sections()?,
-        Command::NextSection { count } => next_section(count)?,
-        Command::PrevSection { count } => prev_section(count)?,
-        Command::Goto { section } => goto(&section)?,
-    }
-    Ok(())
+    let result = match cli.command {
+        Command::Start { filename } => start(&filename),
+        Command::Next => next(),
+        Command::Peek => peek(),
+        Command::Forward { count } => forward(count),
+        Command::Rewind { count } => rewind(count),
+        Command::ListSections => list_sections(),
+        Command::NextSection { count } => next_section(count),
+        Command::PrevSection { count } => prev_section(count),
+        Command::Goto { section } => goto(&section),
+    };
+    result.inspect_err(|err| error!("{err:#}"))
 }
 
 /// Restart the configuration for the given path.
@@ -96,10 +96,7 @@ fn start(filename: &Path) -> Result<()> {
         .map(|_| {
             debug!("Configuration successfully created.");
         })
-        .map_err(|err| {
-            error!("Failed to create configuration: {err}.");
-            eyre!("Failed to create configuration: {err}")
-        })
+        .wrap_err("Failed to create configuration")
 }
 
 /// Print next snippet and advance.
@@ -116,91 +113,77 @@ fn peek() -> Result<()> {
 
 /// Print next snippet and optionally advance.
 fn peek_or_next(advance: bool) -> Result<()> {
-    let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
+    let mut cfg = load_config()?;
     let result = if advance { cfg.next() } else { cfg.peek() };
     result
         .map(|snippet| {
             print!("{snippet}");
         })
-        .map_err(|err| {
-            error!(
-                "Failed to obtain {} snippet: {}.",
-                if advance { "next" } else { "current" },
-                err
-            );
-            eyre!(
-                "Failed to obtain {} snippet: {}.",
-                if advance { "next" } else { "current" },
-                err
-            )
+        .wrap_err_with(|| {
+            let kind = if advance { "next" } else { "current" };
+            format!("Failed to obtain {kind} snippet")
         })
 }
 
 /// Increases the counter by the number provided in the argument. It returns a result of the operation.
 fn forward(count: usize) -> Result<()> {
     info!("Forward {count}");
-    let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    cfg.forward(count).map_err(|err| {
-        error!("Failed to forward: {err}.");
-        eyre!("Failed to forward: {err}.")
-    })
+    let mut cfg = load_config()?;
+    cfg.forward(count).wrap_err("Failed to forward")
 }
 
 /// Decreases the counter by the number provided in the argument. It returns a result of the operation.
 fn rewind(count: usize) -> Result<()> {
     info!("Rewind {count}");
-    let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    cfg.rewind(count).map_err(|err| {
-        error!("Failed to rewind: {err}.");
-        eyre!("Failed to rewind: {err}.")
-    })
+    let mut cfg = load_config()?;
+    cfg.rewind(count).wrap_err("Failed to rewind")
 }
 
 /// Moves to the first snippet of the section that is `count` sections forward.
 fn next_section(count: usize) -> Result<()> {
     info!("Next section {count}");
-    let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    cfg.next_section(count).map_err(|err| {
-        error!("Failed to move to next section: {err}.");
-        eyre!("Failed to move to next section: {err}.")
-    })
+    let mut cfg = load_config()?;
+    cfg.next_section(count)
+        .wrap_err("Failed to move to next section")
 }
 
 /// Moves to the first snippet of the section that is `count` sections backward.
 fn prev_section(count: usize) -> Result<()> {
     info!("Previous section {count}");
-    let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    cfg.prev_section(count).map_err(|err| {
-        error!("Failed to move to previous section: {err}.");
-        eyre!("Failed to move to previous section: {err}.")
-    })
+    let mut cfg = load_config()?;
+    cfg.prev_section(count)
+        .wrap_err("Failed to move to previous section")
 }
 
 /// Moves to the first snippet of the section with the given number.
 fn goto(section: &str) -> Result<()> {
     info!("Go to section {section}");
-    let mut cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    cfg.goto(section).map_err(|err| {
-        error!("Failed to go to section {section}: {err}.");
-        eyre!("Failed to go to section {section}: {err}.")
-    })
+    let mut cfg = load_config()?;
+    cfg.goto(section)
+        .wrap_err_with(|| format!("Failed to go to section {section}"))
 }
 
 /// Prints the sections of the snippet file.
 fn list_sections() -> Result<()> {
     info!("List sections");
-    let cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    match cfg.outline() {
-        Ok(outline) if !outline.sections.is_empty() => {
-            print!("{}", format_sections(&outline, cfg.position()));
-            Ok(())
-        }
-        result => {
-            let err = result.err().unwrap_or(LazyCoderError::NoSections);
-            error!("Failed to list sections: {err}.");
-            Err(eyre!("Failed to list sections: {err}."))
-        }
-    }
+    let cfg = load_config()?;
+    let outline = cfg
+        .outline()
+        .and_then(|outline| {
+            if outline.sections.is_empty() {
+                Err(LazyCoderError::NoSections)
+            } else {
+                Ok(outline)
+            }
+        })
+        .wrap_err("Failed to list sections")?;
+    print!("{}", format_sections(&outline, cfg.position()));
+    Ok(())
+}
+
+/// Reads the saved configuration.
+fn load_config() -> Result<Config> {
+    Config::from_file().wrap_err("Failed to read config file")
 }
 
 /// One line per section with its number, title, and snippets, indented by level. The snippets are shown as

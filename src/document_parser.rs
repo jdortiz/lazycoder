@@ -47,8 +47,19 @@ pub(crate) fn indentation(line: &str) -> usize {
     line.chars().take_while(|c| c.is_whitespace()).count()
 }
 
+/// Lines of the snippet at the given location, without the indentation of its block.
+pub(crate) fn block_lines<'a>(
+    text: &'a str,
+    location: &SnippetLocation,
+) -> impl Iterator<Item = &'a str> {
+    text.lines()
+        .skip(location.start_line)
+        .take(location.end_line.saturating_sub(location.start_line))
+        .map(|line| dedent(line, location.indent))
+}
+
 /// Line without up to `indent` leading whitespace characters.
-pub(crate) fn dedent(line: &str, indent: usize) -> &str {
+fn dedent(line: &str, indent: usize) -> &str {
     let mut rest = line;
     for _ in 0..indent {
         match rest.strip_prefix(char::is_whitespace) {

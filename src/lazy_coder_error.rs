@@ -4,6 +4,7 @@ use std::{error, fmt, io};
 pub enum LazyCoderError {
     SnippetFileNotFound,
     SnippetFileError(io::Error),
+    SnippetPathNotUtf8,
     RunOutOfSnippets,
     ConfigDirError,
     ConfigFileError(io::Error),
@@ -25,6 +26,9 @@ impl fmt::Display for LazyCoderError {
             }
             LazyCoderError::SnippetFileError(err) => {
                 write!(f, "snippet file error: {err}")
+            }
+            LazyCoderError::SnippetPathNotUtf8 => {
+                write!(f, "snippet file path is not valid UTF-8")
             }
             LazyCoderError::RunOutOfSnippets => {
                 write!(f, "out of range of available snippets")
@@ -80,6 +84,14 @@ mod tests {
         assert_eq!(
             LazyCoderError::SnippetFileNotFound.to_string(),
             "snippet file not found"
+        );
+    }
+
+    #[test]
+    fn display_snippet_path_not_utf8_error() {
+        assert_eq!(
+            LazyCoderError::SnippetPathNotUtf8.to_string(),
+            "snippet file path is not valid UTF-8"
         );
     }
 

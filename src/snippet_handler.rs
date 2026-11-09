@@ -145,6 +145,12 @@ mod tests {
 
     const PATH: &str = "/some/demo.lazycoder";
     const THREE_SNIPPETS: &str = "First snippet\n\n---\n\nSecond snippet\n\n---\n\nThird snippet\n";
+    const ORG_PATH: &str = "/some/demo.org";
+    const ORG_TEXT: &str =
+        "* Intro\n#+begin_src\nhello\n#+end_src\n* Next\n#+begin_example\nbye\n#+end_example\n";
+    const MARKDOWN_PATH: &str = "/some/demo.md";
+    const MARKDOWN_TEXT: &str = "# Intro\n```\nhello\n```\n# Next\n~~~\nbye\n~~~\n";
+
     #[test]
     fn plain_file_preparation_does_not_read_it() {
         let mut fs = MockFileSystem::new();
@@ -154,10 +160,6 @@ mod tests {
 
         assert!(matches!(sut.prepare(), Ok(())));
     }
-
-    const ORG_PATH: &str = "/some/demo.org";
-    const ORG_TEXT: &str =
-        "* Intro\n#+begin_src\nhello\n#+end_src\n* Next\n#+begin_example\nbye\n#+end_example\n";
 
     #[test]
     fn configuration_successful_with_existing_file() {
@@ -404,8 +406,6 @@ mod tests {
 
     #[test]
     fn provider_for_markdown_file_extracts_blocks() {
-        const MARKDOWN_PATH: &str = "/some/demo.md";
-        const MARKDOWN_TEXT: &str = "# Intro\n```\nhello\n```\n# Next\n~~~\nbye\n~~~\n";
         let mut fs = MockFileSystem::new();
         fs.expect_is_file()
             .withf(|path| path == Path::new(MARKDOWN_PATH))

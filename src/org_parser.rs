@@ -2,7 +2,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    document_parser::{DocumentParser, dedent, indentation},
+    document_parser::{DocumentParser, block_lines, indentation},
     lazy_coder_error::LazyCoderError,
     outline::{MAX_SECTION_LEVEL, Outline, SnippetLocation},
 };
@@ -58,10 +58,8 @@ impl DocumentParser for OrgParser {
     }
 
     fn extract(&self, text: &str, location: &SnippetLocation) -> String {
-        text.lines()
-            .skip(location.start_line)
-            .take(location.end_line.saturating_sub(location.start_line))
-            .map(|line| unescape(dedent(line, location.indent)) + "\n")
+        block_lines(text, location)
+            .map(|line| unescape(line) + "\n")
             .collect()
     }
 }

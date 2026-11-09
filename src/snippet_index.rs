@@ -19,7 +19,7 @@ static INDEX_SUFFIX: &str = ".lci";
 /// Contents of the index file.
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 struct IndexFile {
-    /// Hash of the snippet document (org or otherwise) the outline was obtained from.
+    /// Hash of the snippet document the outline was obtained from.
     hash: String,
     outline: Outline,
 }
