@@ -4,6 +4,8 @@ name = "lazycoder"
 description = "Simple snippet provider for espanso."
 version = "0.8.1"
 edition = "2024"
+# Required by let chains and by sha2.
+rust-version = "1.88"
 
 [dependencies]
 clap = { version = "~4.6", features = ["derive"] }
