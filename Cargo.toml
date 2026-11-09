@@ -2,7 +2,7 @@
 authors = ["Jorge D. Ortiz-Fuentes <jdortiz@gmail.com>"]
 name = "lazycoder"
 description = "Simple snippet provider for espanso."
-version = "0.8.0"
+version = "0.8.1"
 edition = "2024"
 
 [dependencies]
