@@ -8,6 +8,7 @@
 //! - next: Prints the next snippet to stdout and increments counter
 //! - rewind: Decrements counter
 //! - forward: Increments counter
+//! - list-sections: Prints the sections with their numbers
 //! - next-section: Moves to the first snippet of a following section
 //! - prev-section: Moves to the first snippet of the current or a preceding section
 //! - goto: Moves to the first snippet of a section given by its number
@@ -59,6 +60,9 @@ pub enum Command {
         #[arg(default_value_t = 1)]
         count: usize,
     },
+    /// List the sections with their numbers
+    #[command(visible_alias = "l")]
+    ListSections,
     /// Move to the first snippet of the *n*-th next section
     #[command(visible_alias = "ns")]
     NextSection {
@@ -92,6 +96,16 @@ mod tests {
         use clap::CommandFactory;
 
         CliArgs::command().debug_assert();
+    }
+
+    #[test]
+    fn list_sections() {
+        assert!(matches!(parse(&["list-sections"]), Command::ListSections));
+    }
+
+    #[test]
+    fn list_sections_alias() {
+        assert!(matches!(parse(&["l"]), Command::ListSections));
     }
 
     #[test]

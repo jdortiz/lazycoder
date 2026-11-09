@@ -28,6 +28,15 @@ impl Section {
             first_snippet,
         }
     }
+
+    /// Dotted representation of the outline number, e.g. "2.1".
+    pub fn number_string(&self) -> String {
+        self.number
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>()
+            .join(".")
+    }
 }
 
 /// Lines of the document that contain a snippet.
@@ -54,6 +63,19 @@ impl SnippetLocation {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn number_string_of_top_level_section() {
+        assert_eq!(Section::new(1, "Title", &[2], 0).number_string(), "2");
+    }
+
+    #[test]
+    fn number_string_of_nested_section() {
+        assert_eq!(
+            Section::new(3, "Title", &[2, 1, 3], 0).number_string(),
+            "2.1.3"
+        );
+    }
 
     #[test]
     fn outline_survives_toml_round_trip() {

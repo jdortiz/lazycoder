@@ -23,6 +23,9 @@
 //! - increments counter (number times)
 //! - returns nothing
 //!
+//! `lazycoder list-sections`
+//! - prints the sections with their numbers, indented by level
+//!
 //! `lazycoder next-section [number]`
 //! - moves to the first snippet of the section that is number sections ahead
 //! - returns nothing
@@ -46,7 +49,7 @@ mod outline;
 mod snippet_handler;
 mod snippet_index;
 
-use std::path::Path;
+use std::{fmt::Write, path::Path};
 
 use clap::Parser;
 #[cfg_attr(test, double)]
@@ -56,7 +59,11 @@ use log::{debug, error, info};
 #[cfg(test)]
 use mockall_double::double;
 
-use crate::cli_args::{CliArgs, Command};
+use crate::{
+    cli_args::{CliArgs, Command},
+    lazy_coder_error::LazyCoderError,
+    outline::Section,
+};
 
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
@@ -72,6 +79,7 @@ fn main() -> Result<()> {
         Command::Peek => peek()?,
         Command::Forward { count } => forward(count)?,
         Command::Rewind { count } => rewind(count)?,
+        Command::ListSections => list_sections()?,
         Command::NextSection { count } => next_section(count)?,
         Command::PrevSection { count } => prev_section(count)?,
         Command::Goto { section } => goto(&section)?,
@@ -177,6 +185,37 @@ fn goto(section: &str) -> Result<()> {
     })
 }
 
+/// Prints the sections of the snippet file.
+fn list_sections() -> Result<()> {
+    info!("List sections");
+    let cfg = Config::from_file().wrap_err("Failed to read config file")?;
+    match cfg.sections() {
+        Ok(sections) if !sections.is_empty() => {
+            print!("{}", format_sections(&sections));
+            Ok(())
+        }
+        result => {
+            let err = result.err().unwrap_or(LazyCoderError::NoSections);
+            error!("Failed to list sections: {err}.");
+            Err(eyre!("Failed to list sections: {err}."))
+        }
+    }
+}
+
+/// One line per section with its number and title, indented by level.
+fn format_sections(sections: &[Section]) -> String {
+    sections.iter().fold(String::new(), |mut text, section| {
+        let indent = "  ".repeat(usize::from(section.level.saturating_sub(1)));
+        let _ = writeln!(
+            text,
+            "{indent}{} {}",
+            section.number_string(),
+            section.title
+        );
+        text
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use mockall::predicate;
@@ -184,7 +223,6 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::config::MockConfig;
-    use crate::lazy_coder_error::LazyCoderError;
 
     use super::*;
 
@@ -518,5 +556,80 @@ mod tests {
         });
 
         assert!(goto("2.1").is_err(), "Unexpected result");
+    }
+
+    #[test]
+    fn list_sections_uses_config_and_reports_ok() {
+        let _mtx = MTX.lock();
+        let context = MockConfig::from_file_context();
+        context.expect().returning(|| {
+            let mut config_mock = MockConfig::default();
+            config_mock
+                .expect_sections()
+                .once()
+                .returning(|| Ok(vec![Section::new(1, "Intro", &[1], 0)]));
+            Ok(config_mock)
+        });
+
+        assert!(list_sections().is_ok(), "Unexpected result");
+    }
+
+    #[test]
+    fn list_sections_returns_error_if_no_config() {
+        let _mtx = MTX.lock();
+        let context = MockConfig::from_file_context();
+        context
+            .expect()
+            .returning(|| Err(LazyCoderError::ConfigDirError));
+
+        assert!(list_sections().is_err(), "Unexpected result");
+    }
+
+    #[test]
+    fn list_sections_returns_error_if_config_operation_fails() {
+        let _mtx = MTX.lock();
+        let context = MockConfig::from_file_context();
+        context.expect().returning(|| {
+            let mut config_mock = MockConfig::default();
+            config_mock
+                .expect_sections()
+                .returning(|| Err(LazyCoderError::MalformedDocument { line: 2 }));
+            Ok(config_mock)
+        });
+
+        assert!(list_sections().is_err(), "Unexpected result");
+    }
+
+    #[test]
+    fn list_sections_returns_error_if_file_has_no_sections() {
+        let _mtx = MTX.lock();
+        let context = MockConfig::from_file_context();
+        context.expect().returning(|| {
+            let mut config_mock = MockConfig::default();
+            config_mock.expect_sections().returning(|| Ok(vec![]));
+            Ok(config_mock)
+        });
+
+        assert!(list_sections().is_err(), "Unexpected result");
+    }
+
+    #[test]
+    fn sections_are_formatted_indented_by_level() {
+        let sections = [
+            Section::new(1, "Intro", &[1], 0),
+            Section::new(2, "Setup", &[1, 1], 0),
+            Section::new(3, "Details", &[1, 1, 1], 1),
+            Section::new(1, "Code", &[2], 2),
+        ];
+
+        assert_eq!(
+            format_sections(&sections),
+            "1 Intro\n  1.1 Setup\n    1.1.1 Details\n2 Code\n"
+        );
+    }
+
+    #[test]
+    fn no_sections_are_formatted_as_empty_text() {
+        assert_eq!(format_sections(&[]), "");
     }
 }

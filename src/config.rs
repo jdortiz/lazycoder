@@ -128,8 +128,8 @@ impl Config {
         self.move_to(position)
     }
 
-    /// Sections of the snippet file in the configuration.
-    fn sections(&self) -> Result<Vec<Section>, LazyCoderError> {
+    /// Sections of the snippet file in the configuration, empty if its format has none.
+    pub fn sections(&self) -> Result<Vec<Section>, LazyCoderError> {
         get_snippet_provider(Path::new(&self.file_path))?.sections()
     }
 
@@ -641,6 +641,26 @@ mod tests {
         assert!(
             matches!(result, Err(LazyCoderError::MalformedDocument { line: 2 })),
             "Unexpected result: {result:?}"
+        );
+    }
+
+    #[test]
+    fn sections_are_obtained_from_snippet_provider() {
+        // No file system answer: any file access would fail the test.
+        provider_with_sections();
+        let sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 1,
+        };
+
+        let result = sut.sections();
+
+        assert_eq!(
+            result.expect("Unexpected error"),
+            vec![
+                Section::new(1, "Intro", &[1], 0),
+                Section::new(1, "Code", &[2], 4),
+            ]
         );
     }
 
