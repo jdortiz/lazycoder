@@ -336,6 +336,7 @@ dependencies = [
  "mockall_double",
  "serde",
  "sha2",
+ "thiserror",
  "toml",
 ]
 

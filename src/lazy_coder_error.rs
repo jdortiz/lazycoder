@@ -1,76 +1,34 @@
-use std::{error, fmt, io};
+use std::io;
 
-#[derive(Debug)]
+use thiserror::Error;
+
+/// Errors of lazycoder. Wrapped errors are their source, so they aren't repeated in the message.
+#[derive(Debug, Error)]
 pub enum LazyCoderError {
+    #[error("snippet file not found")]
     SnippetFileNotFound,
-    SnippetFileError(io::Error),
+    #[error("snippet file error")]
+    SnippetFileError(#[source] io::Error),
+    #[error("snippet file path is not valid UTF-8")]
     SnippetPathNotUtf8,
+    #[error("out of range of available snippets")]
     RunOutOfSnippets,
+    #[error("no valid home directory path could be retrieved")]
     ConfigDirError,
-    ConfigFileError(io::Error),
-    ConfigEncoding(toml::de::Error),
+    #[error("configuration file error")]
+    ConfigFileError(#[from] io::Error),
+    #[error("configuration encoding error")]
+    ConfigEncoding(#[from] toml::de::Error),
+    #[error("operation out of range")]
     OperationOutOfRange,
+    #[error("malformed snippet document at line {line}")]
     MalformedDocument { line: usize },
-    IndexFileError(io::Error),
+    #[error("index file error")]
+    IndexFileError(#[source] io::Error),
+    #[error("section not found")]
     SectionNotFound,
+    #[error("snippet file has no sections")]
     NoSections,
-}
-
-impl error::Error for LazyCoderError {}
-
-impl fmt::Display for LazyCoderError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            LazyCoderError::SnippetFileNotFound => {
-                write!(f, "snippet file not found")
-            }
-            LazyCoderError::SnippetFileError(err) => {
-                write!(f, "snippet file error: {err}")
-            }
-            LazyCoderError::SnippetPathNotUtf8 => {
-                write!(f, "snippet file path is not valid UTF-8")
-            }
-            LazyCoderError::RunOutOfSnippets => {
-                write!(f, "out of range of available snippets")
-            }
-            LazyCoderError::ConfigDirError => {
-                write!(f, "no valid home directory path could be retrieved")
-            }
-            LazyCoderError::ConfigFileError(err) => {
-                write!(f, "configuration file error: {err}")
-            }
-            LazyCoderError::ConfigEncoding(err) => {
-                write!(f, "configuration encoding error: {err}")
-            }
-            LazyCoderError::OperationOutOfRange => {
-                write!(f, "operation out of range")
-            }
-            LazyCoderError::MalformedDocument { line } => {
-                write!(f, "malformed snippet document at line {line}")
-            }
-            LazyCoderError::IndexFileError(err) => {
-                write!(f, "index file error: {err}")
-            }
-            LazyCoderError::SectionNotFound => {
-                write!(f, "section not found")
-            }
-            LazyCoderError::NoSections => {
-                write!(f, "snippet file has no sections")
-            }
-        }
-    }
-}
-
-impl From<std::io::Error> for LazyCoderError {
-    fn from(err: std::io::Error) -> Self {
-        LazyCoderError::ConfigFileError(err)
-    }
-}
-
-impl From<toml::de::Error> for LazyCoderError {
-    fn from(err: toml::de::Error) -> Self {
-        LazyCoderError::ConfigEncoding(err)
-    }
 }
 
 #[cfg(test)]
@@ -100,7 +58,7 @@ mod tests {
         assert_eq!(
             LazyCoderError::SnippetFileError(std::io::Error::other("some file error".to_string()))
                 .to_string(),
-            "snippet file error: some file error"
+            "snippet file error"
         );
     }
 
@@ -125,7 +83,7 @@ mod tests {
         assert_eq!(
             LazyCoderError::ConfigFileError(std::io::Error::other("some file error".to_string()))
                 .to_string(),
-            "configuration file error: some file error"
+            "configuration file error"
         );
     }
 
@@ -133,7 +91,7 @@ mod tests {
     fn display_config_encoding_error() {
         assert_eq!(
             LazyCoderError::ConfigEncoding(toml::de::Error::custom("some file error")).to_string(),
-            "configuration encoding error: some file error\n" // Newline added by toml::de::Error
+            "configuration encoding error"
         );
     }
 
@@ -158,8 +116,26 @@ mod tests {
         assert_eq!(
             LazyCoderError::IndexFileError(std::io::Error::other("some file error".to_string()))
                 .to_string(),
-            "index file error: some file error"
+            "index file error"
         );
+    }
+
+    #[test]
+    fn wrapped_error_is_the_source() {
+        let error =
+            LazyCoderError::IndexFileError(std::io::Error::other("some file error".to_string()));
+
+        assert_eq!(
+            std::error::Error::source(&error).map(ToString::to_string),
+            Some(String::from("some file error"))
+        );
+    }
+
+    #[test]
+    fn io_error_is_converted_to_custom_error() {
+        let new_error = LazyCoderError::from(std::io::Error::other("some file error".to_string()));
+
+        assert!(matches!(new_error, LazyCoderError::ConfigFileError(_)));
     }
 
     #[test]
@@ -179,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn toml_error_conversion() {
+    fn toml_error_is_converted_to_custom_error() {
         let toml_error = toml::de::Error::custom("some file error");
         let new_error = LazyCoderError::from(toml_error.clone());
 
