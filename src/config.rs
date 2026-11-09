@@ -3,7 +3,9 @@ use std::path::Path;
 use log::{debug, error};
 use serde::{Deserialize, Serialize};
 
-use crate::{file_system::FileSystem, lazy_coder_error::LazyCoderError};
+use crate::{
+    file_system::FileSystem, lazy_coder_error::LazyCoderError, navigation, outline::Section,
+};
 
 #[cfg(not(test))]
 use aux::{config_dir, file_system, get_snippet_provider};
@@ -104,6 +106,37 @@ impl Config {
         } else {
             Err(LazyCoderError::OperationOutOfRange)
         }
+    }
+
+    /// Change the configuration file to point to the first snippet of the section that is `count` forward.
+    pub fn next_section(&mut self, count: usize) -> Result<(), LazyCoderError> {
+        let position = navigation::next_section(&self.sections()?, self.position, count)?;
+        self.move_to(position)
+    }
+
+    /// Change the configuration file to point to the first snippet of the section that is `count` backward. If the
+    /// position is past the start of the current section, the first step goes back to that start.
+    pub fn prev_section(&mut self, count: usize) -> Result<(), LazyCoderError> {
+        let position = navigation::prev_section(&self.sections()?, self.position, count)?;
+        self.move_to(position)
+    }
+
+    /// Change the configuration file to point to the first snippet of the section with the given outline number,
+    /// e.g. "2.1".
+    pub fn goto(&mut self, section: &str) -> Result<(), LazyCoderError> {
+        let position = navigation::goto(&self.sections()?, section)?;
+        self.move_to(position)
+    }
+
+    /// Sections of the snippet file in the configuration.
+    fn sections(&self) -> Result<Vec<Section>, LazyCoderError> {
+        get_snippet_provider(Path::new(&self.file_path))?.sections()
+    }
+
+    /// Set the position and save the configuration.
+    fn move_to(&mut self, position: usize) -> Result<(), LazyCoderError> {
+        self.position = position;
+        self.save(file_system().as_ref(), false)
     }
 
     /// Saves this configuration to the standard path and file.
@@ -518,6 +551,109 @@ mod tests {
             matches!(result, Err(LazyCoderError::OperationOutOfRange)),
             "Unexpected error moving backward"
         );
+    }
+
+    #[test]
+    fn next_section_moves_to_its_first_snippet_and_saves() {
+        CONFIG_DIR_ANSWER.set(Some(PathBuf::from("/some/config/path")));
+        FILE_SYSTEM_ANSWER.set(Some(Box::new(file_system_expecting_config(
+            "file_path = \"/some/config/path\"\nposition = 4\n",
+        ))));
+        provider_with_sections();
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 1,
+        };
+
+        let result = sut.next_section(1);
+
+        assert!(result.is_ok(), "Unexpected error: {result:?}");
+    }
+
+    #[test]
+    fn prev_section_moves_to_its_first_snippet_and_saves() {
+        CONFIG_DIR_ANSWER.set(Some(PathBuf::from("/some/config/path")));
+        FILE_SYSTEM_ANSWER.set(Some(Box::new(file_system_expecting_config(
+            "file_path = \"/some/config/path\"\nposition = 0\n",
+        ))));
+        provider_with_sections();
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 4,
+        };
+
+        let result = sut.prev_section(1);
+
+        assert!(result.is_ok(), "Unexpected error: {result:?}");
+    }
+
+    #[test]
+    fn goto_moves_to_first_snippet_of_section_and_saves() {
+        CONFIG_DIR_ANSWER.set(Some(PathBuf::from("/some/config/path")));
+        FILE_SYSTEM_ANSWER.set(Some(Box::new(file_system_expecting_config(
+            "file_path = \"/some/config/path\"\nposition = 4\n",
+        ))));
+        provider_with_sections();
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 0,
+        };
+
+        let result = sut.goto("2");
+
+        assert!(result.is_ok(), "Unexpected error: {result:?}");
+    }
+
+    #[test]
+    fn goto_unexisting_section_fails_without_saving() {
+        // No file system answer: any file access would fail the test.
+        provider_with_sections();
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 1,
+        };
+
+        let result = sut.goto("7");
+
+        assert!(
+            matches!(result, Err(LazyCoderError::SectionNotFound)),
+            "Unexpected result: {result:?}"
+        );
+        assert_eq!(sut.position, 1);
+    }
+
+    #[test]
+    fn section_navigation_fails_if_snippet_provider_fails() {
+        // No file system answer: any file access would fail the test.
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov
+            .expect_sections()
+            .once()
+            .returning(|| Err(LazyCoderError::MalformedDocument { line: 2 }));
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
+        let mut sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 1,
+        };
+
+        let result = sut.next_section(1);
+
+        assert!(
+            matches!(result, Err(LazyCoderError::MalformedDocument { line: 2 })),
+            "Unexpected result: {result:?}"
+        );
+    }
+
+    /// Snippet provider with two sections, starting at snippets 0 and 4.
+    fn provider_with_sections() {
+        let mut snippet_prov = MockSnippetProvider::new();
+        snippet_prov.expect_sections().once().returning(|| {
+            Ok(vec![
+                Section::new(1, "Intro", &[1], 0),
+                Section::new(1, "Code", &[2], 4),
+            ])
+        });
+        SNIPPET_PROVIDER_ANSWER.set(Some(Box::new(snippet_prov)));
     }
 
     pub mod aux {
