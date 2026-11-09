@@ -7,6 +7,7 @@ use crate::{
     document_parser::{DocumentParser, SnippetFormat},
     file_system::FileSystem,
     lazy_coder_error::LazyCoderError,
+    markdown_parser::MarkdownParser,
     org_parser::OrgParser,
     outline::Outline,
     snippet_index::load_or_build,
@@ -31,6 +32,11 @@ pub fn snippet_provider<P: AsRef<Path>>(
     Ok(match SnippetFormat::from_path(path.as_ref()) {
         SnippetFormat::Plain => Box::new(SnippetHandler::new(path, fs)?),
         SnippetFormat::Org => Box::new(OutlineSnippetHandler::new(path, fs, Box::new(OrgParser))?),
+        SnippetFormat::Markdown => Box::new(OutlineSnippetHandler::new(
+            path,
+            fs,
+            Box::new(MarkdownParser),
+        )?),
     })
 }
 
@@ -139,6 +145,12 @@ mod tests {
 
     const PATH: &str = "/some/demo.lazycoder";
     const THREE_SNIPPETS: &str = "First snippet\n\n---\n\nSecond snippet\n\n---\n\nThird snippet\n";
+    const ORG_PATH: &str = "/some/demo.org";
+    const ORG_TEXT: &str =
+        "* Intro\n#+begin_src\nhello\n#+end_src\n* Next\n#+begin_example\nbye\n#+end_example\n";
+    const MARKDOWN_PATH: &str = "/some/demo.md";
+    const MARKDOWN_TEXT: &str = "# Intro\n```\nhello\n```\n# Next\n~~~\nbye\n~~~\n";
+
     #[test]
     fn plain_file_preparation_does_not_read_it() {
         let mut fs = MockFileSystem::new();
@@ -148,10 +160,6 @@ mod tests {
 
         assert!(matches!(sut.prepare(), Ok(())));
     }
-
-    const ORG_PATH: &str = "/some/demo.org";
-    const ORG_TEXT: &str =
-        "* Intro\n#+begin_src\nhello\n#+end_src\n* Next\n#+begin_example\nbye\n#+end_example\n";
 
     #[test]
     fn configuration_successful_with_existing_file() {
@@ -389,6 +397,29 @@ mod tests {
     #[test]
     fn provider_for_org_file_extracts_blocks() {
         let sut = snippet_provider(ORG_PATH, org_file_system(None)).expect("Unexpected error");
+
+        assert_eq!(sut.get_snippet(1).expect("Unexpected error"), "bye\n");
+        let outline = sut.outline().expect("Unexpected error");
+        assert_eq!(outline.sections.len(), 2);
+        assert_eq!(outline.snippets.len(), 2);
+    }
+
+    #[test]
+    fn provider_for_markdown_file_extracts_blocks() {
+        let mut fs = MockFileSystem::new();
+        fs.expect_is_file()
+            .withf(|path| path == Path::new(MARKDOWN_PATH))
+            .return_const(true);
+        fs.expect_read_to_string()
+            .withf(|path| path == Path::new(MARKDOWN_PATH))
+            .returning(|_| Ok(String::from(MARKDOWN_TEXT)));
+        fs.expect_read_to_string()
+            .withf(|path| path == index_path(Path::new(MARKDOWN_PATH)))
+            .returning(|_| Err(Error::from(ErrorKind::NotFound)));
+        fs.expect_write()
+            .withf(|path, _| path == index_path(Path::new(MARKDOWN_PATH)))
+            .returning(|_, _| Ok(()));
+        let sut = snippet_provider(MARKDOWN_PATH, Box::new(fs)).expect("Unexpected error");
 
         assert_eq!(sut.get_snippet(1).expect("Unexpected error"), "bye\n");
         let outline = sut.outline().expect("Unexpected error");

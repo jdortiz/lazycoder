@@ -10,14 +10,11 @@ pub fn next_section(
     count: usize,
 ) -> Result<usize, LazyCoderError> {
     let starts = section_starts(sections)?;
-    let Some(skipped) = count.checked_sub(1) else {
-        return Ok(position);
-    };
-    starts
-        .into_iter()
-        .filter(|&start| start > position)
-        .nth(skipped)
-        .ok_or(LazyCoderError::OperationOutOfRange)
+    nth_start(
+        starts.into_iter().filter(|&start| start > position),
+        position,
+        count,
+    )
 }
 
 /// Position of the first snippet of the `count`-th section before the current position. If the current position is
@@ -28,15 +25,11 @@ pub fn prev_section(
     count: usize,
 ) -> Result<usize, LazyCoderError> {
     let starts = section_starts(sections)?;
-    let Some(skipped) = count.checked_sub(1) else {
-        return Ok(position);
-    };
-    starts
-        .into_iter()
-        .rev()
-        .filter(|&start| start < position)
-        .nth(skipped)
-        .ok_or(LazyCoderError::OperationOutOfRange)
+    nth_start(
+        starts.into_iter().rev().filter(|&start| start < position),
+        position,
+        count,
+    )
 }
 
 /// Position of the first snippet of the section with the given outline number, e.g. "2.1".
@@ -50,6 +43,20 @@ pub fn goto(sections: &[Section], number: &str) -> Result<usize, LazyCoderError>
         .find(|section| section.number == number)
         .map(|section| section.first_snippet)
         .ok_or(LazyCoderError::SectionNotFound)
+}
+
+/// The `count`-th of the candidate starts, or the current position if `count` is 0.
+fn nth_start(
+    mut starts: impl Iterator<Item = usize>,
+    position: usize,
+    count: usize,
+) -> Result<usize, LazyCoderError> {
+    let Some(skipped) = count.checked_sub(1) else {
+        return Ok(position);
+    };
+    starts
+        .nth(skipped)
+        .ok_or(LazyCoderError::OperationOutOfRange)
 }
 
 /// Distinct positions where the sections start, in document order.
