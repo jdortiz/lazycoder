@@ -72,6 +72,10 @@ go to.  `prev-section` behaves like the back button of a media player: if
 you are past the first snippet of the current section, it takes you back to its start; otherwise, to the previous
 section.
 
+`list-sections` shows the snippets of each section as `[f:5/o:2/t:6]`: `f` is the number of its first snippet
+(starting from 0), `o` the number of snippets of its own (before the next heading), and `t` the total number of
+snippets, including those of its subsections.
+
 ## Author
 
 (c) Jorge D. Ortiz Fuentes, 2022 - 2026

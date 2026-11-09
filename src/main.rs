@@ -62,7 +62,7 @@ use mockall_double::double;
 use crate::{
     cli_args::{CliArgs, Command},
     lazy_coder_error::LazyCoderError,
-    outline::Section,
+    outline::Outline,
 };
 
 fn main() -> Result<()> {
@@ -189,9 +189,9 @@ fn goto(section: &str) -> Result<()> {
 fn list_sections() -> Result<()> {
     info!("List sections");
     let cfg = Config::from_file().wrap_err("Failed to read config file")?;
-    match cfg.sections() {
-        Ok(sections) if !sections.is_empty() => {
-            print!("{}", format_sections(&sections));
+    match cfg.outline() {
+        Ok(outline) if !outline.sections.is_empty() => {
+            print!("{}", format_sections(&outline));
             Ok(())
         }
         result => {
@@ -202,18 +202,26 @@ fn list_sections() -> Result<()> {
     }
 }
 
-/// One line per section with its number and title, indented by level.
-fn format_sections(sections: &[Section]) -> String {
-    sections.iter().fold(String::new(), |mut text, section| {
-        let indent = "  ".repeat(usize::from(section.level.saturating_sub(1)));
-        let _ = writeln!(
-            text,
-            "{indent}{} {}",
-            section.number_string(),
-            section.title
-        );
-        text
-    })
+/// One line per section with its number, title, and snippets, indented by level. The snippets are shown as
+/// `[f:<first snippet>/o:<own snippets>/t:<total snippets, including subsections>]`.
+fn format_sections(outline: &Outline) -> String {
+    outline
+        .sections
+        .iter()
+        .enumerate()
+        .fold(String::new(), |mut text, (index, section)| {
+            let indent = "  ".repeat(usize::from(section.level.saturating_sub(1)));
+            let _ = writeln!(
+                text,
+                "{indent}{} {} [f:{}/o:{}/t:{}]",
+                section.number_string(),
+                section.title,
+                section.first_snippet,
+                outline.own_snippets(index).len(),
+                outline.total_snippets(index).len()
+            );
+            text
+        })
 }
 
 #[cfg(test)]
@@ -222,7 +230,10 @@ mod tests {
     use std::path::PathBuf;
     use std::sync::Mutex;
 
-    use crate::config::MockConfig;
+    use crate::{
+        config::MockConfig,
+        outline::{Section, SnippetLocation},
+    };
 
     use super::*;
 
@@ -564,10 +575,12 @@ mod tests {
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
-            config_mock
-                .expect_sections()
-                .once()
-                .returning(|| Ok(vec![Section::new(1, "Intro", &[1], 0)]));
+            config_mock.expect_outline().once().returning(|| {
+                Ok(Outline {
+                    sections: vec![Section::new(1, "Intro", &[1], 0)],
+                    snippets: vec![SnippetLocation::new(1, 2, 0)],
+                })
+            });
             Ok(config_mock)
         });
 
@@ -592,7 +605,7 @@ mod tests {
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
             config_mock
-                .expect_sections()
+                .expect_outline()
                 .returning(|| Err(LazyCoderError::MalformedDocument { line: 2 }));
             Ok(config_mock)
         });
@@ -606,7 +619,9 @@ mod tests {
         let context = MockConfig::from_file_context();
         context.expect().returning(|| {
             let mut config_mock = MockConfig::default();
-            config_mock.expect_sections().returning(|| Ok(vec![]));
+            config_mock
+                .expect_outline()
+                .returning(|| Ok(Outline::default()));
             Ok(config_mock)
         });
 
@@ -614,22 +629,27 @@ mod tests {
     }
 
     #[test]
-    fn sections_are_formatted_indented_by_level() {
-        let sections = [
-            Section::new(1, "Intro", &[1], 0),
-            Section::new(2, "Setup", &[1, 1], 0),
-            Section::new(3, "Details", &[1, 1, 1], 1),
-            Section::new(1, "Code", &[2], 2),
-        ];
+    fn sections_are_formatted_indented_by_level_with_snippet_counts() {
+        let outline = Outline {
+            sections: vec![
+                Section::new(1, "Intro", &[1], 0),
+                Section::new(2, "Setup", &[1, 1], 2),
+                Section::new(3, "Details", &[1, 1, 1], 3),
+                Section::new(1, "Code", &[2], 5),
+            ],
+            snippets: (0..6)
+                .map(|line| SnippetLocation::new(line, line + 1, 0))
+                .collect(),
+        };
 
         assert_eq!(
-            format_sections(&sections),
-            "1 Intro\n  1.1 Setup\n    1.1.1 Details\n2 Code\n"
+            format_sections(&outline),
+            "1 Intro [f:0/o:2/t:5]\n  1.1 Setup [f:2/o:1/t:3]\n    1.1.1 Details [f:3/o:2/t:2]\n2 Code [f:5/o:1/t:1]\n"
         );
     }
 
     #[test]
     fn no_sections_are_formatted_as_empty_text() {
-        assert_eq!(format_sections(&[]), "");
+        assert_eq!(format_sections(&Outline::default()), "");
     }
 }
