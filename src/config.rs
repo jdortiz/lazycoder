@@ -91,6 +91,11 @@ impl Config {
         Ok(snippet)
     }
 
+    /// Position of the next snippet to be provided.
+    pub fn position(&self) -> usize {
+        self.position
+    }
+
     /// Change the configuration file to point to a snippet that is `count` forward.
     /// Out-of-range positions are accepted silently, but peek/next will work fine.
     pub fn forward(&mut self, count: usize) -> Result<(), LazyCoderError> {
@@ -643,6 +648,16 @@ mod tests {
             matches!(result, Err(LazyCoderError::MalformedDocument { line: 2 })),
             "Unexpected result: {result:?}"
         );
+    }
+
+    #[test]
+    fn position_is_returned() {
+        let sut = Config {
+            file_path: String::from("/some/config/path"),
+            position: 3,
+        };
+
+        assert_eq!(sut.position(), 3);
     }
 
     #[test]

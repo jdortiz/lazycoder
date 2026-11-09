@@ -38,6 +38,12 @@ impl Outline {
             .map_or(self.snippets.len(), |next| next.first_snippet);
         section.first_snippet..end
     }
+
+    /// Index of the section that the snippet belongs to, i.e. the one whose own snippets include it. `None` if the
+    /// snippet is before the first section or doesn't exist.
+    pub fn section_of(&self, snippet: usize) -> Option<usize> {
+        (0..self.sections.len()).find(|&index| self.own_snippets(index).contains(&snippet))
+    }
 }
 
 /// Heading that can be used to navigate the document.
@@ -169,6 +175,46 @@ mod tests {
         };
 
         assert_eq!(outline.total_snippets(1), 1..2);
+    }
+
+    #[test]
+    fn snippet_belongs_to_top_level_section() {
+        assert_eq!(outline().section_of(1), Some(0));
+    }
+
+    #[test]
+    fn snippet_belongs_to_deepest_section() {
+        assert_eq!(outline().section_of(4), Some(2));
+    }
+
+    #[test]
+    fn snippet_belongs_to_section_with_own_snippets_among_those_sharing_start() {
+        assert_eq!(outline().section_of(5), Some(5));
+    }
+
+    #[test]
+    fn snippet_past_the_last_one_belongs_to_no_section() {
+        assert_eq!(outline().section_of(8), None);
+    }
+
+    #[test]
+    fn snippet_before_first_section_belongs_to_no_section() {
+        let outline = Outline {
+            sections: vec![Section::new(1, "Intro", &[1], 2)],
+            snippets: snippets(3),
+        };
+
+        assert_eq!(outline.section_of(1), None);
+    }
+
+    #[test]
+    fn snippet_belongs_to_no_section_without_sections() {
+        let outline = Outline {
+            sections: vec![],
+            snippets: snippets(3),
+        };
+
+        assert_eq!(outline.section_of(0), None);
     }
 
     #[test]

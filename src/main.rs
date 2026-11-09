@@ -191,7 +191,7 @@ fn list_sections() -> Result<()> {
     let cfg = Config::from_file().wrap_err("Failed to read config file")?;
     match cfg.outline() {
         Ok(outline) if !outline.sections.is_empty() => {
-            print!("{}", format_sections(&outline));
+            print!("{}", format_sections(&outline, cfg.position()));
             Ok(())
         }
         result => {
@@ -203,17 +203,20 @@ fn list_sections() -> Result<()> {
 }
 
 /// One line per section with its number, title, and snippets, indented by level. The snippets are shown as
-/// `[f:<first snippet>/o:<own snippets>/t:<total snippets, including subsections>]`.
-fn format_sections(outline: &Outline) -> String {
+/// `[f:<first snippet>/o:<own snippets>/t:<total snippets, including subsections>]`. The section of the snippet at
+/// `position` is marked with `>`.
+fn format_sections(outline: &Outline, position: usize) -> String {
+    let current = outline.section_of(position);
     outline
         .sections
         .iter()
         .enumerate()
         .fold(String::new(), |mut text, (index, section)| {
+            let marker = if current == Some(index) { ">" } else { " " };
             let indent = "  ".repeat(usize::from(section.level.saturating_sub(1)));
             let _ = writeln!(
                 text,
-                "{indent}{} {} [f:{}/o:{}/t:{}]",
+                "{marker} {indent}{} {} [f:{}/o:{}/t:{}]",
                 section.number_string(),
                 section.title,
                 section.first_snippet,
@@ -581,6 +584,7 @@ mod tests {
                     snippets: vec![SnippetLocation::new(1, 2, 0)],
                 })
             });
+            config_mock.expect_position().return_const(0_usize);
             Ok(config_mock)
         });
 
@@ -629,8 +633,29 @@ mod tests {
     }
 
     #[test]
-    fn sections_are_formatted_indented_by_level_with_snippet_counts() {
-        let outline = Outline {
+    fn sections_are_formatted_indented_by_level_with_snippet_counts_and_marker() {
+        assert_eq!(
+            format_sections(&outline_with_subsections(), 3),
+            "  1 Intro [f:0/o:2/t:5]\n    1.1 Setup [f:2/o:1/t:3]\n>     1.1.1 Details [f:3/o:2/t:2]\n  2 Code [f:5/o:1/t:1]\n"
+        );
+    }
+
+    #[test]
+    fn sections_are_formatted_without_marker_when_all_snippets_were_provided() {
+        assert_eq!(
+            format_sections(&outline_with_subsections(), 6),
+            "  1 Intro [f:0/o:2/t:5]\n    1.1 Setup [f:2/o:1/t:3]\n      1.1.1 Details [f:3/o:2/t:2]\n  2 Code [f:5/o:1/t:1]\n"
+        );
+    }
+
+    #[test]
+    fn no_sections_are_formatted_as_empty_text() {
+        assert_eq!(format_sections(&Outline::default(), 0), "");
+    }
+
+    /// Outline with 6 snippets and nested sections.
+    fn outline_with_subsections() -> Outline {
+        Outline {
             sections: vec![
                 Section::new(1, "Intro", &[1], 0),
                 Section::new(2, "Setup", &[1, 1], 2),
@@ -640,16 +665,6 @@ mod tests {
             snippets: (0..6)
                 .map(|line| SnippetLocation::new(line, line + 1, 0))
                 .collect(),
-        };
-
-        assert_eq!(
-            format_sections(&outline),
-            "1 Intro [f:0/o:2/t:5]\n  1.1 Setup [f:2/o:1/t:3]\n    1.1.1 Details [f:3/o:2/t:2]\n2 Code [f:5/o:1/t:1]\n"
-        );
-    }
-
-    #[test]
-    fn no_sections_are_formatted_as_empty_text() {
-        assert_eq!(format_sections(&Outline::default()), "");
+        }
     }
 }
