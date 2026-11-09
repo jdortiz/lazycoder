@@ -64,7 +64,9 @@ impl Config {
             "Reading configuration from file {}",
             config_file.as_path().display()
         );
-        let toml_text = file_system().read_to_string(&config_file)?;
+        let toml_text = file_system()
+            .read_to_string(&config_file)
+            .map_err(LazyCoderError::ConfigFileError)?;
         let cfg: Config = toml::from_str(&toml_text)?;
         // TODO: Check that the file_path is stil valid?
         Ok(cfg)
@@ -144,7 +146,8 @@ impl Config {
         let mut config_path = config_dir().ok_or(LazyCoderError::ConfigDirError)?;
         if !fs.exists(&config_path) {
             if create_dir {
-                fs.create_dir_all(&config_path)?;
+                fs.create_dir_all(&config_path)
+                    .map_err(LazyCoderError::ConfigFileError)?;
             } else {
                 return Err(LazyCoderError::ConfigDirError);
             }
@@ -154,7 +157,8 @@ impl Config {
             "Writing configuration to file {}",
             config_path.as_path().display()
         );
-        fs.write(&config_path, &toml_text)?;
+        fs.write(&config_path, &toml_text)
+            .map_err(LazyCoderError::ConfigFileError)?;
         Ok(())
     }
 }

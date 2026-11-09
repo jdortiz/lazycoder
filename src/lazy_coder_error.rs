@@ -16,7 +16,7 @@ pub enum LazyCoderError {
     #[error("no valid home directory path could be retrieved")]
     ConfigDirError,
     #[error("configuration file error")]
-    ConfigFileError(#[from] io::Error),
+    ConfigFileError(#[source] io::Error),
     #[error("configuration encoding error")]
     ConfigEncoding(#[from] toml::de::Error),
     #[error("operation out of range")]
@@ -118,13 +118,6 @@ mod tests {
             std::error::Error::source(&error).map(ToString::to_string),
             Some(String::from("some file error"))
         );
-    }
-
-    #[test]
-    fn io_error_is_converted_to_custom_error() {
-        let new_error = LazyCoderError::from(std::io::Error::other("some file error".to_string()));
-
-        assert!(matches!(new_error, LazyCoderError::ConfigFileError(_)));
     }
 
     #[test]
