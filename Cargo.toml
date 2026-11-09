@@ -2,7 +2,7 @@
 authors = ["Jorge D. Ortiz-Fuentes <jdortiz@gmail.com>"]
 name = "lazycoder"
 description = "Simple snippet provider for espanso."
-version = "0.8.1"
+version = "0.9.0"
 edition = "2024"
 # Required by let chains and by sha2.
 rust-version = "1.88"
