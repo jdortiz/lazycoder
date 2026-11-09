@@ -62,13 +62,20 @@ and you probably want to add `*.lci` to your `.gitignore`.
 | `peek`                 | `p`   | Provide the next snippet without moving forward                                |
 | `forward [n]`          | `f`   | Move *n* snippets forward (1 by default)                                       |
 | `rewind [n]`           | `r`   | Move *n* snippets backward (1 by default)                                      |
+| `list-sections`        | `l`   | List the sections with their numbers, indented by level                        |
 | `next-section [n]`     | `ns`  | Move to the first snippet of the *n*-th next section (1 by default)            |
 | `prev-section [n]`     | `ps`  | Move to the first snippet of the current section or the previous ones          |
 | `goto <section>`       | `g`   | Move to the first snippet of the section with that number, e.g. `goto 2.1`     |
 
-The section commands only work with Org mode files.  `prev-section` behaves like the back button of a media player: if
+The section commands only work with Org mode files.  Use `list-sections` to find the number of the section you want to
+go to.  `prev-section` behaves like the back button of a media player: if
 you are past the first snippet of the current section, it takes you back to its start; otherwise, to the previous
 section.
+
+`list-sections` shows the snippets of each section as `[f:5/o:2/t:6]`: `f` is the number of its first snippet
+(starting from 0), `o` the number of snippets of its own (before the next heading), and `t` the total number of
+snippets, including those of its subsections.  The section of the next snippet (the one `peek` would provide) is marked
+with `>`.
 
 ## Author
 
