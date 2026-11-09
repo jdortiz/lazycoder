@@ -43,6 +43,7 @@ mod config;
 mod document_parser;
 mod file_system;
 mod lazy_coder_error;
+mod markdown_parser;
 mod navigation;
 mod org_parser;
 mod outline;

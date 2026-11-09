@@ -12,8 +12,9 @@ This project is licensed under the terms of the [Apache license 2.0](./LICENSE.t
 
 ## Snippet files
 
-The format of the snippet file is chosen by its extension: files ending in `.org` are Org mode documents and any other
-file is considered to be a plain text snippet file.
+The format of the snippet file is chosen by its extension: files ending in `.org` are Org mode documents, files ending
+in `.md` or `.markdown` are Markdown documents, and any other file is considered to be a plain text snippet file.  If
+you have a plain text snippet file with a Markdown extension, rename it to keep using its `---` separators.
 
 ### Plain text
 
@@ -48,10 +49,36 @@ fn main() {}
 - Org mode's protective commas (`,*` and `,#+` at the beginning of a line) are removed.
 - Each snippet ends with a new line.
 
-When you start using an Org mode file, lazycoder stores its structure in an index file next to it, with the same name
-plus `.lci` (e.g. `demo.org.lci`), and a hash of the document.  The index file is reused while the document doesn't
-change and rebuilt otherwise, even if you edit the document in the middle of your demo.  You can delete it at any time,
-and you probably want to add `*.lci` to your `.gitignore`.
+### Markdown
+
+Markdown documents work like Org mode ones: every fenced code block (delimited by at least three backticks or tildes)
+is a snippet, in the order they appear in the document.
+
+````markdown
+# Setup
+1. Create the project
+   ```shell
+   cargo new demo
+   ```
+# Code
+## Main function
+```rust
+fn main() {}
+```
+````
+
+- Headings of levels 1 to 3 written with `#` are sections, numbered like an outline.  Deeper headings and underlined
+  headings are ignored.
+- Only fenced blocks are snippets, not the ones that are just indented.
+- A block must be closed: a fence without its closing one is reported as an error.
+- The indentation of a block is removed from its contents and each snippet ends with a new line.
+
+### Index file
+
+When you start using an Org mode or Markdown file, lazycoder stores its structure in an index file next to it, with the
+same name plus `.lci` (e.g. `demo.org.lci`), and a hash of the document.  The index file is reused while the document
+doesn't change and rebuilt otherwise, even if you edit the document in the middle of your demo.  You can delete it at
+any time, and you probably want to add `*.lci` to your `.gitignore`.
 
 ## Commands
 
@@ -67,7 +94,7 @@ and you probably want to add `*.lci` to your `.gitignore`.
 | `prev-section [n]`     | `ps`  | Move to the first snippet of the current section or the previous ones          |
 | `goto <section>`       | `g`   | Move to the first snippet of the section with that number, e.g. `goto 2.1`     |
 
-The section commands only work with Org mode files.  Use `list-sections` to find the number of the section you want to
+The section commands only work with Org mode and Markdown files.  Use `list-sections` to find the number of the section you want to
 go to.  `prev-section` behaves like the back button of a media player: if
 you are past the first snippet of the current section, it takes you back to its start; otherwise, to the previous
 section.

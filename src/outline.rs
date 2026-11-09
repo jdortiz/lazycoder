@@ -3,6 +3,9 @@ use std::ops::Range;
 
 use serde::{Deserialize, Serialize};
 
+/// Deepest heading level that creates a section.
+pub const MAX_SECTION_LEVEL: u8 = 3;
+
 /// Structure of a snippet document.
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Default)]
 pub struct Outline {
@@ -11,6 +14,23 @@ pub struct Outline {
 }
 
 impl Outline {
+    /// Add the section of a heading found after the current snippets, updating the counters of each level.
+    ///
+    /// # Panics
+    ///
+    /// If `level` is 0 or there is no counter for it.
+    pub fn add_section(&mut self, counters: &mut [usize], level: u8, title: &str) {
+        let depth = usize::from(level);
+        counters[depth - 1] += 1;
+        counters[depth..].fill(0);
+        self.sections.push(Section::new(
+            level,
+            title,
+            &counters[..depth],
+            self.snippets.len(),
+        ));
+    }
+
     /// Snippets of the section at `index` that are not in any of its subsections: up to the next heading.
     ///
     /// # Panics

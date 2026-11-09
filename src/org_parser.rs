@@ -2,13 +2,11 @@
 use std::borrow::Cow;
 
 use crate::{
-    document_parser::DocumentParser,
+    document_parser::{DocumentParser, dedent, indentation},
     lazy_coder_error::LazyCoderError,
-    outline::{Outline, Section, SnippetLocation},
+    outline::{MAX_SECTION_LEVEL, Outline, SnippetLocation},
 };
 
-/// Deepest heading level that creates a section.
-const MAX_SECTION_LEVEL: u8 = 3;
 /// Kinds of blocks that contain snippets, i.e. `#+begin_<kind>` ... `#+end_<kind>`.
 const BLOCK_KINDS: [&str; 2] = ["src", "example"];
 
@@ -47,15 +45,7 @@ impl DocumentParser for OrgParser {
             } else if let Some((level, title)) = heading(line)
                 && level <= MAX_SECTION_LEVEL
             {
-                let depth = usize::from(level);
-                counters[depth - 1] += 1;
-                counters[depth..].fill(0);
-                outline.sections.push(Section::new(
-                    level,
-                    title,
-                    &counters[..depth],
-                    outline.snippets.len(),
-                ));
+                outline.add_section(&mut counters, level, title);
             }
         }
 
@@ -105,23 +95,6 @@ fn is_block_end(line: &str, kind: &str) -> bool {
     line.trim().eq_ignore_ascii_case(&format!("#+end_{kind}"))
 }
 
-/// Number of leading whitespace characters.
-fn indentation(line: &str) -> usize {
-    line.chars().take_while(|c| c.is_whitespace()).count()
-}
-
-/// Line without up to `indent` leading whitespace characters.
-fn dedent(line: &str, indent: usize) -> &str {
-    let mut rest = line;
-    for _ in 0..indent {
-        match rest.strip_prefix(char::is_whitespace) {
-            Some(stripped) => rest = stripped,
-            None => break,
-        }
-    }
-    rest
-}
-
 /// Line without the comma Org uses to protect lines starting with `*` or `#+` inside blocks.
 fn unescape(line: &str) -> Cow<'_, str> {
     let content = line.trim_start();
@@ -136,6 +109,8 @@ fn unescape(line: &str) -> Cow<'_, str> {
 
 #[cfg(test)]
 mod tests {
+    use crate::outline::Section;
+
     use super::*;
 
     #[test]
