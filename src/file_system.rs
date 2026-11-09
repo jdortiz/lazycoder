@@ -1,6 +1,8 @@
 //! Access to the file system, behind a trait so it can be mocked in tests.
+#[cfg(not(test))]
+use std::fs;
 use std::{
-    fs, io,
+    io,
     path::{Path, PathBuf},
 };
 
@@ -19,8 +21,10 @@ pub trait FileSystem {
 }
 
 /// Access to the actual file system of the computer.
+#[cfg(not(test))]
 pub struct DiskFileSystem;
 
+#[cfg(not(test))]
 impl FileSystem for DiskFileSystem {
     fn read_to_string(&self, path: &Path) -> io::Result<String> {
         fs::read_to_string(path)

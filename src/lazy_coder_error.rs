@@ -11,7 +11,6 @@ pub enum LazyCoderError {
     OperationOutOfRange,
     MalformedDocument { line: usize },
     IndexFileError(io::Error),
-    IndexEncoding(toml::de::Error),
     SectionNotFound,
     NoSections,
 }
@@ -47,9 +46,6 @@ impl fmt::Display for LazyCoderError {
             }
             LazyCoderError::IndexFileError(err) => {
                 write!(f, "index file error: {err}")
-            }
-            LazyCoderError::IndexEncoding(err) => {
-                write!(f, "index encoding error: {err}")
             }
             LazyCoderError::SectionNotFound => {
                 write!(f, "section not found")
@@ -151,14 +147,6 @@ mod tests {
             LazyCoderError::IndexFileError(std::io::Error::other("some file error".to_string()))
                 .to_string(),
             "index file error: some file error"
-        );
-    }
-
-    #[test]
-    fn display_index_encoding_error() {
-        assert_eq!(
-            LazyCoderError::IndexEncoding(toml::de::Error::custom("some file error")).to_string(),
-            "index encoding error: some file error\n" // Newline added by toml::de::Error
         );
     }
 
