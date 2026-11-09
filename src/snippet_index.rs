@@ -42,7 +42,8 @@ pub fn content_hash(text: &str) -> String {
 }
 
 /// Read the snippet document and obtain its outline, from the index file if it is up to date, or parsing the
-/// document and writing a new index file otherwise.
+/// document and writing a new index file otherwise. Failing to write the index file isn't an error: the outline is
+/// still returned, and the document will be parsed again next time.
 pub fn load_or_build(
     fs: &dyn FileSystem,
     source: &Path,
@@ -63,8 +64,9 @@ pub fn load_or_build(
     };
     let toml_text = toml::to_string(&index).expect("Failing to encode TOML");
     debug!("Writing index to file {}", path.display());
-    fs.write(&path, &toml_text)
-        .map_err(LazyCoderError::IndexFileError)?;
+    if let Err(err) = fs.write(&path, &toml_text) {
+        warn!("Index file {} cannot be written: {err}", path.display());
+    }
     Ok((text, index.outline))
 }
 
@@ -212,16 +214,17 @@ mod tests {
     }
 
     #[test]
-    fn index_write_failure_is_reported() {
+    fn index_write_failure_still_returns_outline() {
         let mut fs = file_system(None);
         fs.expect_write()
+            .once()
             .returning(|_, _| Err(io::Error::from(io::ErrorKind::PermissionDenied)));
 
         let result = load_or_build(&fs, Path::new(SOURCE), &parser_returning_outline());
 
-        assert!(
-            matches!(result, Err(LazyCoderError::IndexFileError(_))),
-            "Unexpected result: {result:?}"
+        assert_eq!(
+            result.expect("Unexpected error"),
+            (String::from(TEXT), outline())
         );
     }
 

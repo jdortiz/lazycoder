@@ -23,8 +23,6 @@ pub enum LazyCoderError {
     OperationOutOfRange,
     #[error("malformed snippet document at line {line}")]
     MalformedDocument { line: usize },
-    #[error("index file error")]
-    IndexFileError(#[source] io::Error),
     #[error("section not found")]
     SectionNotFound,
     #[error("snippet file has no sections")]
@@ -112,18 +110,9 @@ mod tests {
     }
 
     #[test]
-    fn display_index_file_error() {
-        assert_eq!(
-            LazyCoderError::IndexFileError(std::io::Error::other("some file error".to_string()))
-                .to_string(),
-            "index file error"
-        );
-    }
-
-    #[test]
     fn wrapped_error_is_the_source() {
         let error =
-            LazyCoderError::IndexFileError(std::io::Error::other("some file error".to_string()));
+            LazyCoderError::SnippetFileError(std::io::Error::other("some file error".to_string()));
 
         assert_eq!(
             std::error::Error::source(&error).map(ToString::to_string),
